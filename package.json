@@ -1,0 +1,82 @@
+{
+  "name": "artimeow-aiwriter",
+  "version": "1.0.0",
+  "description": "ArtiMeow - AI 集成小说写作桌面应用",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:prod": "set NODE_ENV=production&& electron .",
+    "dev": "set NODE_ENV=development&& electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder --win --mac --linux",
+    "pack": "electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "electron",
+    "ai",
+    "writing",
+    "novel",
+    "desktop-app"
+  ],
+  "author": "B5-Software",
+  "build": {
+    "appId": "com.github.B5-Software.ArtiMeow-AIWriter",
+    "productName": "ArtiMeow AI Writer",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "!node_modules/.cache/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "tutorial",
+        "to": "tutorial"
+      },
+      {
+        "from": "src/icon",
+        "to": "icon"
+      }
+    ],
+    "asarUnpack": [
+      "src/icon/**/*",
+      "tutorial/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "src/icon/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "src/renderer/assets/icons/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "src/renderer/assets/icons/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "axios": "^1.10.0",
+    "diff": "^8.0.2",
+    "electron-store": "^10.1.0",
+    "extract-zip": "^2.0.1",
+    "highlight.js": "^11.11.1",
+    "marked": "^16.0.0"
+  }
+}

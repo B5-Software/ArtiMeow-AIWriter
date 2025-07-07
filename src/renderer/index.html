@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtiMeow - AI 集成小说写作</title>
+    <link rel="stylesheet" href="assets/fonts/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/editor.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/tutorial.css">
+</head>
+<body>
+    <!-- 自定义窗口控制按钮 -->
+    <div class="titlebar">
+        <div class="titlebar-drag-area">
+            <span class="titlebar-title">ArtiMeow - AI 集成小说写作</span>
+        </div>
+        <div class="titlebar-controls">
+            <button id="minimize-btn" class="titlebar-button minimize" title="最小化">
+                <i class="fas fa-window-minimize"></i>
+            </button>
+            <button id="maximize-btn" class="titlebar-button maximize" title="最大化">
+                <i class="fas fa-window-maximize"></i>
+            </button>
+            <button id="close-btn" class="titlebar-button close" title="关闭">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 加载屏幕 -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-container">
+            <div class="loading-logo">
+                <h1 class="app-name">ArtiMeow</h1>
+                <p class="app-subtitle">AI Writer</p>
+                <div class="version-info">v1.0.0 - Made by B5-Software</div>
+            </div>
+            <div class="loading-progress-container">
+                <div class="loading-progress">
+                    <div class="progress-bar"></div>
+                </div>
+                <div class="loading-status" id="loading-status">正在初始化...</div>
+            </div>
+            <div class="loading-logs" id="loading-logs">
+                <div class="log-item">初始化应用</div>
+                <div class="log-item">加载设置</div>
+                <div class="log-item">初始化事件监听器</div>
+                <div class="log-item">加载项目列表</div>
+                <div class="log-item">应用设置</div>
+                <div class="log-item">启动完成</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主界面 -->
+    <div id="app" class="app hidden">
+        <!-- 标题栏 -->
+        <div class="title-bar">
+            <div class="title-bar-left">
+                <div class="app-icon">
+                    <i class="fas fa-cat"></i>
+                </div>
+                <div class="app-title">ArtiMeow</div>
+            </div>
+            <div class="title-bar-center">
+                <div id="current-project-name" class="current-project">未选择项目</div>
+            </div>
+            <div class="title-bar-right">
+                <button id="minimize-btn" class="title-btn">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="maximize-btn" class="title-btn">
+                    <i class="fas fa-expand"></i>
+                </button>
+                <button id="close-btn" class="title-btn close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 主内容区域 -->
+        <div class="main-content">
+            <!-- 侧边栏 -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h3>项目管理</h3>
+                    <button id="new-project-btn" class="btn-primary">
+                        <i class="fas fa-plus"></i> 新建项目
+                    </button>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h4>最近项目</h4>
+                    <div id="recent-projects" class="recent-projects">
+                        <!-- 动态加载 -->
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h4>当前项目</h4>
+                    <div id="current-project-info" class="project-info">
+                        <p>请选择或创建一个项目</p>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h4>章节管理</h4>
+                    <div id="chapters-list" class="chapters-list">
+                        <!-- 动态加载 -->
+                    </div>
+                    <button id="add-chapter-btn" class="btn-secondary" disabled>
+                        <i class="fas fa-plus"></i> 添加章节
+                    </button>
+                </div>
+            </div>
+
+            <!-- 编辑区域 -->
+            <div class="editor-container">
+                <div class="editor-header">
+                    <div class="editor-tabs">
+                        <div class="tab active" data-tab="write">
+                            <i class="fas fa-pen"></i> 写作
+                        </div>
+                        <div class="tab" data-tab="ai">
+                            <i class="fas fa-robot"></i> AI 助手
+                        </div>
+                        <div class="tab" data-tab="preview">
+                            <i class="fas fa-eye"></i> 预览
+                        </div>
+                    </div>
+                    <div class="editor-actions">
+                        <button id="save-btn" class="btn-primary">
+                            <i class="fas fa-save"></i> 保存
+                        </button>
+                        <button id="git-btn" class="btn-secondary">
+                            <i class="fas fa-code-branch"></i> Git
+                        </button>
+                        <button id="tutorial-btn" class="btn-secondary">
+                            <i class="fas fa-book"></i> 教程
+                        </button>
+                        <button id="settings-btn" class="btn-secondary">
+                            <i class="fas fa-cog"></i> 设置
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 写作面板 -->
+                <div id="write-panel" class="editor-panel active">
+                    <!-- Markdown 工具栏 -->
+                    <div class="markdown-toolbar">
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" id="md-bold-btn" title="加粗 (Ctrl+B)" data-toolbar-btn="true">
+                                <i class="fas fa-bold"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-italic-btn" title="斜体 (Ctrl+I)" data-toolbar-btn="true">
+                                <i class="fas fa-italic"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-strikethrough-btn" title="删除线" data-toolbar-btn="true">
+                                <i class="fas fa-strikethrough"></i>
+                            </button>
+                        </div>
+                        <div class="toolbar-separator"></div>
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" id="md-heading-btn" title="标题" data-toolbar-btn="true">
+                                <i class="fas fa-heading"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-quote-btn" title="引用" data-toolbar-btn="true">
+                                <i class="fas fa-quote-left"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-code-btn" title="代码" data-toolbar-btn="true">
+                                <i class="fas fa-code"></i>
+                            </button>
+                        </div>
+                        <div class="toolbar-separator"></div>
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" id="md-list-ul-btn" title="无序列表" data-toolbar-btn="true">
+                                <i class="fas fa-list-ul"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-list-ol-btn" title="有序列表" data-toolbar-btn="true">
+                                <i class="fas fa-list-ol"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-task-list-btn" title="任务列表" data-toolbar-btn="true">
+                                <i class="fas fa-tasks"></i>
+                            </button>
+                        </div>
+                        <div class="toolbar-separator"></div>
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" id="md-link-btn" title="链接" data-toolbar-btn="true">
+                                <i class="fas fa-link"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-image-btn" title="图片" data-toolbar-btn="true">
+                                <i class="fas fa-image"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-table-btn" title="表格" data-toolbar-btn="true">
+                                <i class="fas fa-table"></i>
+                            </button>
+                        </div>
+                        <div class="toolbar-separator"></div>
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" id="md-hr-btn" title="分隔线" data-toolbar-btn="true">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-preview-btn" title="预览模式" data-toolbar-btn="true">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="toolbar-separator"></div>
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" id="md-undo-btn" title="撤销 (Ctrl+Z)" data-toolbar-btn="true">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-redo-btn" title="重做 (Ctrl+Y)" data-toolbar-btn="true">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            <button class="toolbar-btn" id="md-find-btn" title="查找替换 (Ctrl+F)" data-toolbar-btn="true">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <div class="word-count">
+                            <span id="word-count">0</span> 字
+                        </div>
+                    </div>
+                    
+                    <div class="editor-content">
+                        <textarea id="editor-textarea" class="editor-textarea" placeholder="开始您的创作之旅..."></textarea>
+                    </div>
+                </div>
+
+                <!-- AI 助手面板 -->
+                <div id="ai-panel" class="editor-panel">
+                    <div class="ai-controls">
+                        <div class="ai-mode-switch">
+                            <label class="switch">
+                                <input type="checkbox" id="ai-agent-mode">
+                                <span class="slider"></span>
+                            </label>
+                            <span>AI Agent 模式</span>
+                        </div>
+                        <div id="agent-status" class="agent-status" style="display: none;">
+                            <i class="fas fa-robot"></i> AI Agent 模式运行中...
+                        </div>
+                        <div class="ai-actions">
+                            <button id="ai-continue-btn" class="btn-ai">
+                                <i class="fas fa-magic"></i> 续写
+                            </button>
+                            <button id="ai-rewrite-btn" class="btn-ai">
+                                <i class="fas fa-sync"></i> 重写
+                            </button>
+                            <button id="ai-optimize-btn" class="btn-ai">
+                                <i class="fas fa-sparkles"></i> 优化
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-prompt">
+                        <label for="ai-prompt-input">AI 提示词:</label>
+                        <textarea id="ai-prompt-input" class="ai-prompt-input" placeholder="请输入您的写作要求..."></textarea>
+                        <button id="ai-generate-btn" class="btn-primary">
+                            <i class="fas fa-paper-plane"></i> 生成
+                        </button>
+                    </div>
+
+                    <div class="ai-result">
+                        <div class="ai-result-header">
+                            <h4>AI 生成结果</h4>
+                            <div class="ai-result-actions">
+                                <button id="ai-accept-btn" class="btn-success" disabled>
+                                    <i class="fas fa-check"></i> 接受
+                                </button>
+                                <button id="ai-reject-btn" class="btn-danger" disabled>
+                                    <i class="fas fa-times"></i> 拒绝
+                                </button>
+                            </div>
+                        </div>
+                        <div id="ai-result-content" class="ai-result-content">
+                            <!-- AI 生成的内容将显示在这里 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 预览面板 -->
+                <div id="preview-panel" class="editor-panel">
+                    <div id="preview-content" class="preview-content">
+                        <!-- 预览内容 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 状态栏 -->
+        <div class="status-bar">
+            <div class="status-left">
+                <span id="status-text">就绪</span>
+            </div>
+            <div class="status-right">
+                <span id="git-status" class="git-status">
+                    <i class="fas fa-code-branch"></i> 未连接
+                </span>
+                <span id="ai-status" class="ai-status">
+                    <i class="fas fa-robot"></i> 离线
+                </span>
+                <span id="save-status" class="save-status">
+                    <i class="fas fa-save"></i> 已保存
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框 -->
+    <!-- 新建项目模态框 -->
+    <div id="new-project-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新建项目</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="new-project-form">
+                    <div class="form-group">
+                        <label for="project-name">项目名称</label>
+                        <input type="text" id="project-name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="project-description">项目描述</label>
+                        <textarea id="project-description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="project-author">作者</label>
+                        <input type="text" id="project-author" name="author">
+                    </div>
+                    <div class="form-group">
+                        <label for="project-genre">类型</label>
+                        <select id="project-genre" name="genre">
+                            <option value="">选择类型</option>
+                            <option value="fantasy">奇幻</option>
+                            <option value="romance">言情</option>
+                            <option value="mystery">悬疑</option>
+                            <option value="scifi">科幻</option>
+                            <option value="historical">历史</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="project-git" name="useGit" checked>
+                            启用 Git 版本控制
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('new-project-modal')">取消</button>
+                <button type="submit" form="new-project-form" class="btn-primary">创建项目</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>设置</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-tabs">
+                    <div class="settings-tab active" data-tab="ai">AI 设置</div>
+                    <div class="settings-tab" data-tab="editor">编辑器</div>
+                    <div class="settings-tab" data-tab="git">Git</div>
+                    <div class="settings-tab" data-tab="general">通用</div>
+                </div>
+                <div class="settings-content">
+                    <!-- AI 设置 -->
+                    <div id="ai-settings" class="settings-panel active">
+                        <h4>AI 引擎设置</h4>
+                        <div class="form-group">
+                            <label for="ai-engine">选择 AI 引擎</label>
+                            <select id="ai-engine" name="selectedEngine">
+                                <option value="openai">OpenAI</option>
+                                <option value="ollama">Ollama</option>
+                                <option value="llamacpp">Llama.cpp</option>
+                                <option value="custom">自定义 OpenAI 兼容API</option>
+                            </select>
+                        </div>
+                        
+                        <div id="openai-settings" class="engine-settings">
+                            <h5>OpenAI 设置</h5>
+                            <div class="form-group">
+                                <label for="openai-api-key">API Key</label>
+                                <input type="password" id="openai-api-key" name="apiKey">
+                            </div>
+                            <div class="form-group">
+                                <label for="openai-model">模型</label>
+                                <select id="openai-model" name="model">
+                                    <option value="gpt-4">GPT-4</option>
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="ollama-settings" class="engine-settings hidden">
+                            <h5>Ollama 设置</h5>
+                            <div class="form-group">
+                                <label for="ollama-url">服务器地址</label>
+                                <input type="url" id="ollama-url" name="baseURL" value="http://localhost:11434">
+                            </div>
+                            <div class="form-group">
+                                <label for="ollama-model">模型</label>
+                                <input type="text" id="ollama-model" name="model" value="llama2">
+                            </div>
+                        </div>
+                        
+                        <div id="llamacpp-settings" class="engine-settings hidden">
+                            <h5>Llama.cpp 设置</h5>
+                            <div class="form-group">
+                                <label for="llamacpp-url">服务器地址</label>
+                                <input type="url" id="llamacpp-url" name="baseURL" value="http://localhost:8080">
+                            </div>
+                            <div class="form-group">
+                                <label for="llamacpp-model">模型</label>
+                                <input type="text" id="llamacpp-model" name="model" value="llama2">
+                            </div>
+                        </div>
+                        
+                        <div id="custom-settings" class="engine-settings hidden">
+                            <h5>自定义 OpenAI 兼容API 设置</h5>
+                            <div class="form-group">
+                                <label for="custom-api-key">API Key</label>
+                                <input type="password" id="custom-api-key" name="apiKey" placeholder="如果需要的话">
+                            </div>
+                            <div class="form-group">
+                                <label for="custom-base-url">Base URL</label>
+                                <input type="url" id="custom-base-url" name="baseURL" placeholder="https://api.example.com/v1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="custom-model">模型</label>
+                                <input type="text" id="custom-model" name="model" placeholder="gpt-3.5-turbo" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="custom-temperature">温度</label>
+                                <input type="range" id="custom-temperature" name="temperature" min="0" max="2" step="0.1" value="0.7">
+                                <span id="custom-temperature-value">0.7</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="custom-max-tokens">最大令牌数</label>
+                                <input type="number" id="custom-max-tokens" name="maxTokens" min="1" max="4096" value="1000">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="system-prompt">系统提示词</label>
+                            <textarea id="system-prompt" name="systemPrompt" rows="5"></textarea>
+                            <div class="mt-sm">
+                                <button type="button" id="reset-prompt-btn" class="btn-secondary btn-sm">恢复默认</button>
+                                <button type="button" id="test-ai-connection" class="btn-primary btn-sm">测试连接</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 编辑器设置 -->
+                    <div id="editor-settings" class="settings-panel">
+                        <h4>编辑器设置</h4>
+                        <div class="form-group">
+                            <label for="editor-font-size">字体大小</label>
+                            <input type="range" id="editor-font-size" name="fontSize" min="12" max="24" value="16">
+                            <span id="font-size-value">16px</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="editor-font-family">字体族</label>
+                            <select id="editor-font-family" name="fontFamily">
+                                <option value="Georgia, serif">Georgia</option>
+                                <option value="Times New Roman, serif">Times New Roman</option>
+                                <option value="Arial, sans-serif">Arial</option>
+                                <option value="Helvetica, sans-serif">Helvetica</option>
+                                <option value="Courier New, monospace">Courier New</option>
+                                <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
+                                <option value="SimHei, sans-serif">黑体</option>
+                                <option value="SimSun, serif">宋体</option>
+                                <option value="KaiTi, serif">楷体</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>自定义字体</label>
+                            <div class="custom-font-container">
+                                <input type="file" id="custom-font-file" accept=".ttf,.otf,.woff,.woff2" style="display: none;">
+                                <button type="button" id="upload-font-btn" class="btn-secondary">上传字体文件</button>
+                                <select id="custom-font-select" name="customFont" style="display: none;">
+                                    <option value="">选择自定义字体</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="editor-theme">主题</label>
+                            <select id="editor-theme" name="theme">
+                                <option value="dark">深色主题</option>
+                                <option value="light">浅色主题</option>
+                                <option value="auto">跟随系统</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editor-line-height">行高</label>
+                            <input type="range" id="editor-line-height" name="lineHeight" min="1" max="2" step="0.1" value="1.5">
+                            <span id="line-height-value">1.5</span>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="auto-save" name="autoSave">
+                                自动保存
+                            </label>
+                        </div>
+                        <div class="form-group" id="auto-save-settings" style="display: none;">
+                            <label for="auto-save-interval">自动保存间隔（秒）</label>
+                            <input type="number" id="auto-save-interval" name="autoSaveInterval" min="10" max="300" value="30">
+                        </div>
+                    </div>
+                    
+                    <!-- Git 设置 -->
+                    <div id="git-settings" class="settings-panel">
+                        <h4>Git 设置</h4>
+                        <div class="form-group">
+                            <label for="git-username">用户名</label>
+                            <input type="text" id="git-username" name="userName">
+                        </div>
+                        <div class="form-group">
+                            <label for="git-email">邮箱</label>
+                            <input type="email" id="git-email" name="userEmail">
+                        </div>
+                    </div>
+                    
+                    <!-- 通用设置 -->
+                    <div id="general-settings" class="settings-panel">
+                        <h4>通用设置</h4>
+                        <div class="form-group">
+                            <label for="projects-dir">项目目录</label>
+                            <div class="input-group">
+                                <input type="text" id="projects-dir" name="projectsDir" readonly>
+                                <button type="button" id="choose-projects-dir" class="btn-secondary">选择目录</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="backup-enabled" name="backupEnabled">
+                                启用自动备份
+                            </label>
+                        </div>
+                        <div class="form-group" id="backup-settings" style="display: none;">
+                            <label for="backup-interval">备份间隔（小时）</label>
+                            <input type="number" id="backup-interval" name="backupInterval" min="1" max="168" value="24">
+                        </div>
+                        <div class="form-group" id="backup-settings2" style="display: none;">
+                            <label for="backup-keep-count">保留备份数量</label>
+                            <input type="number" id="backup-keep-count" name="backupKeepCount" min="1" max="50" value="10">
+                        </div>
+                        <div class="form-group">
+                            <button type="button" id="reset-settings" class="btn-warning btn-sm">重置所有设置</button>
+                            <button type="button" id="export-settings" class="btn-info btn-sm">导出设置</button>
+                            <button type="button" id="import-settings" class="btn-secondary btn-sm">导入设置</button>
+                        </div>
+                        <div class="form-group">
+                            <button type="button" id="create-manual-backup" class="btn-primary btn-sm">立即创建备份</button>
+                            <button type="button" id="open-backup-folder" class="btn-secondary btn-sm">打开备份文件夹</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="footer-left">
+                    <span class="made-by">Made by B5-Software</span>
+                </div>
+                <div class="footer-right">
+                    <button type="button" class="btn-secondary" onclick="closeModal('settings-modal')">取消</button>
+                    <button type="button" id="save-settings-btn" class="btn-primary">保存设置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Git 面板 -->
+    <div id="git-modal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>Git 版本控制</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="git-tabs">
+                    <div class="git-tab active" data-tab="status">状态</div>
+                    <div class="git-tab" data-tab="history">历史</div>
+                    <div class="git-tab" data-tab="branches">分支</div>
+                    <div class="git-tab" data-tab="remotes">远程</div>
+                </div>
+
+                <!-- Git 状态面板 -->
+                <div id="git-status-panel" class="git-panel active">
+                    <div class="git-enhanced-actions">
+                        <button id="git-commit-btn" class="git-btn git-btn-primary">
+                            <i class="fas fa-check"></i> 提交更改
+                        </button>
+                        <button id="git-refresh-status-btn" class="git-btn git-btn-secondary">
+                            <i class="fas fa-sync-alt"></i> 刷新
+                        </button>
+                    </div>
+                    <div id="git-status-content" class="git-enhanced-content">
+                        <div class="git-loading">
+                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Git 历史面板 -->
+                <div id="git-history-panel" class="git-panel">
+                    <div class="git-enhanced-actions">
+                        <button id="git-refresh-history-btn" class="git-btn git-btn-secondary">
+                            <i class="fas fa-sync-alt"></i> 刷新历史
+                        </button>
+                    </div>
+                    <div id="git-history-content" class="git-enhanced-content">
+                        <div class="git-loading">
+                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Git 分支面板 -->
+                <div id="git-branches-panel" class="git-panel">
+                    <div class="git-enhanced-actions">
+                        <button id="git-refresh-branches-btn" class="git-btn git-btn-secondary">
+                            <i class="fas fa-sync-alt"></i> 刷新
+                        </button>
+                        <button id="git-branches-tutorial-btn" class="git-btn git-btn-info">
+                            <i class="fas fa-question-circle"></i> 命令教程
+                        </button>
+                        <button id="git-branches-terminal-btn" class="git-btn git-btn-warning">
+                            <i class="fas fa-terminal"></i> 打开终端
+                        </button>
+                    </div>
+                    <div class="git-enhanced-content">
+                        <div class="git-branch-selector">
+                            <label for="git-branch-select">当前分支:</label>
+                            <select id="git-branch-select" class="git-select">
+                                <option value="">选择分支...</option>
+                            </select>
+                        </div>
+                        <div id="git-branches-content" class="git-branches-list">
+                            <div class="git-loading">
+                                <i class="fas fa-spinner fa-spin"></i> 加载中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Git 远程面板 -->
+                <div id="git-remotes-panel" class="git-panel">
+                    <div class="git-enhanced-actions">
+                        <button id="git-refresh-remotes-btn" class="git-btn git-btn-secondary">
+                            <i class="fas fa-sync-alt"></i> 刷新
+                        </button>
+                        <button id="git-remotes-tutorial-btn" class="git-btn git-btn-info">
+                            <i class="fas fa-question-circle"></i> 命令教程
+                        </button>
+                        <button id="git-remotes-terminal-btn" class="git-btn git-btn-warning">
+                            <i class="fas fa-terminal"></i> 打开终端
+                        </button>
+                    </div>
+                    <div class="git-enhanced-content">
+                        <div class="git-remote-selector">
+                            <label for="git-remote-select">远程仓库:</label>
+                            <select id="git-remote-select" class="git-select">
+                                <option value="">选择远程仓库...</option>
+                            </select>
+                        </div>
+                        <div id="git-remotes-content" class="git-remotes-list">
+                            <div class="git-loading">
+                                <i class="fas fa-spinner fa-spin"></i> 加载中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自定义输入模态框 -->
+    <div id="input-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="input-modal-title">输入</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="input-modal-field" id="input-modal-label">请输入:</label>
+                    <input type="text" id="input-modal-field" class="form-control" placeholder="">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeInputModal(false)">取消</button>
+                <button type="button" class="btn-primary" onclick="closeInputModal(true)">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Git远程仓库添加模态框 -->
+    <div id="add-remote-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>添加远程仓库</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="add-remote-form">
+                    <div class="form-group">
+                        <label for="remote-name">远程仓库名称</label>
+                        <input type="text" id="remote-name" class="form-control" placeholder="例如: origin" value="origin" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="remote-url">远程仓库URL</label>
+                        <input type="url" id="remote-url" class="form-control" placeholder="例如: https://github.com/user/repo.git" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('add-remote-modal')">取消</button>
+                <button type="submit" form="add-remote-form" class="btn-primary">添加远程仓库</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建分支模态框 -->
+    <div id="new-branch-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新建分支</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="new-branch-form">
+                    <div class="form-group">
+                        <label for="branch-name">分支名称</label>
+                        <input type="text" id="branch-name" name="branchName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="checkout-new-branch" checked>
+                            创建后切换到新分支
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('new-branch-modal')">取消</button>
+                <button type="submit" form="new-branch-form" class="btn-primary">创建分支</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Git提交消息模态框 -->
+    <div id="commit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>提交更改</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="commit-form">
+                    <div class="form-group">
+                        <label for="commit-message">提交消息</label>
+                        <textarea id="commit-message" class="form-control" rows="3" placeholder="简要描述本次更改..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('commit-modal')">取消</button>
+                <button type="submit" form="commit-form" class="btn-primary">提交</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目右键菜单 -->
+    <div id="project-context-menu" class="context-menu">
+        <div class="context-menu-item" data-action="open-project">
+            <i class="fas fa-folder-open"></i>
+            <span>打开项目</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="export-project">
+            <i class="fas fa-file-export"></i>
+            <span>导出项目</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item context-menu-danger" data-action="delete-project">
+            <i class="fas fa-trash"></i>
+            <span>删除项目</span>
+        </div>
+    </div>
+
+    <!-- 章节右键菜单 -->
+    <div id="chapter-context-menu" class="context-menu">
+        <div class="context-menu-item" data-action="open-chapter">
+            <i class="fas fa-edit"></i>
+            <span>编辑章节</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="rename-chapter">
+            <i class="fas fa-pen"></i>
+            <span>重命名章节</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item context-menu-danger" data-action="delete-chapter">
+            <i class="fas fa-trash"></i>
+            <span>删除章节</span>
+        </div>
+    </div>
+
+    <!-- 编辑器右键菜单 -->
+    <div id="editor-context-menu" class="context-menu">
+        <div class="context-menu-item" data-action="cut">
+            <i class="fas fa-cut"></i>
+            <span>剪切</span>
+            <kbd>Ctrl+X</kbd>
+        </div>
+        <div class="context-menu-item" data-action="copy">
+            <i class="fas fa-copy"></i>
+            <span>复制</span>
+            <kbd>Ctrl+C</kbd>
+        </div>
+        <div class="context-menu-item" data-action="paste">
+            <i class="fas fa-paste"></i>
+            <span>粘贴</span>
+            <kbd>Ctrl+V</kbd>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="select-all">
+            <i class="fas fa-select-all"></i>
+            <span>全选</span>
+            <kbd>Ctrl+A</kbd>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="bold">
+            <i class="fas fa-bold"></i>
+            <span>加粗</span>
+            <kbd>Ctrl+B</kbd>
+        </div>
+        <div class="context-menu-item" data-action="italic">
+            <i class="fas fa-italic"></i>
+            <span>斜体</span>
+            <kbd>Ctrl+I</kbd>
+        </div>
+        <div class="context-menu-item" data-action="underline">
+            <i class="fas fa-underline"></i>
+            <span>下划线</span>
+            <kbd>Ctrl+U</kbd>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="heading">
+            <i class="fas fa-heading"></i>
+            <span>标题</span>
+        </div>
+        <div class="context-menu-item" data-action="bullet-list">
+            <i class="fas fa-list-ul"></i>
+            <span>无序列表</span>
+        </div>
+        <div class="context-menu-item" data-action="numbered-list">
+            <i class="fas fa-list-ol"></i>
+            <span>有序列表</span>
+        </div>
+        <div class="context-menu-item" data-action="quote">
+            <i class="fas fa-quote-left"></i>
+            <span>引用</span>
+        </div>
+        <div class="context-menu-item" data-action="code">
+            <i class="fas fa-code"></i>
+            <span>代码</span>
+        </div>
+        <div class="context-menu-item" data-action="code-block">
+            <i class="fas fa-code"></i>
+            <span>代码块</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="link">
+            <i class="fas fa-link"></i>
+            <span>链接</span>
+        </div>
+        <div class="context-menu-item" data-action="image">
+            <i class="fas fa-image"></i>
+            <span>图片</span>
+        </div>
+        <div class="context-menu-item" data-action="table">
+            <i class="fas fa-table"></i>
+            <span>表格</span>
+        </div>
+        <div class="context-menu-item" data-action="horizontal-rule">
+            <i class="fas fa-minus"></i>
+            <span>分隔线</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="ai-continue">
+            <i class="fas fa-robot"></i>
+            <span>AI续写</span>
+        </div>
+        <div class="context-menu-item" data-action="ai-rewrite">
+            <i class="fas fa-redo"></i>
+            <span>AI重写</span>
+        </div>
+        <div class="context-menu-item" data-action="ai-optimize">
+            <i class="fas fa-magic"></i>
+            <span>AI优化</span>
+        </div>
+    </div>
+
+    <!-- 通知容器 -->
+    <div id="notification-container" class="notification-container"></div>
+
+    <!-- 教程模态框 -->
+    <div id="tutorial-modal" class="modal tutorial-modal">
+        <div class="modal-content tutorial-modal-content">
+            <div class="modal-header">
+                <h3>ArtiMeow AI Writer 教程</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body tutorial-modal-body">
+                <div class="tutorial-container">
+                    <div class="tutorial-sidebar">
+                        <div class="tutorial-search">
+                            <input type="text" id="tutorial-search" placeholder="搜索教程...">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <div class="tutorial-nav">
+                            <div id="tutorial-list" class="tutorial-list">
+                                <!-- 教程列表将在这里动态加载 -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tutorial-content">
+                        <div class="tutorial-breadcrumb">
+                            <span id="tutorial-breadcrumb"></span>
+                        </div>
+                        <div class="tutorial-viewer">
+                            <div id="tutorial-viewer-content" class="tutorial-viewer-content">
+                                <div class="tutorial-welcome">
+                                    <h2>欢迎使用 ArtiMeow AI Writer 教程</h2>
+                                    <p>请从左侧选择一个教程开始学习。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载所有 JavaScript 文件 -->
+    <script src="../../node_modules/marked/lib/marked.umd.js"></script>
+    
+    <!-- Git 教程浮窗 -->
+    <div id="git-tutorial-popup" class="git-tutorial-popup">
+        <div class="git-tutorial-content">
+            <div class="git-tutorial-header">
+                <h3 id="git-tutorial-title">Git 命令教程</h3>
+                <button id="git-tutorial-close" class="git-tutorial-close">&times;</button>
+            </div>
+            <div class="git-tutorial-body">
+                <div id="git-tutorial-text">
+                    <!-- 教程内容将在这里动态插入 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/settings.js"></script>
+    <script src="js/project.js"></script>
+    <script src="js/git.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/context-menu.js"></script>
+    <script src="js/git-enhanced.js"></script>
+    <script src="js/markdown-enhanced.js"></script>
+    <script src="js/tutorial.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

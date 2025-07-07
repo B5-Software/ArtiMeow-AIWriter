@@ -1,0 +1,456 @@
+/* 教程模态框基础样式 */
+.tutorial-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.tutorial-modal.show {
+    display: flex !important;
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 教程模态框样式 */
+.tutorial-modal-content {
+    width: 95%;
+    max-width: 1200px;
+    height: 85vh;
+    max-height: 750px;
+    display: flex;
+    flex-direction: column;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.tutorial-modal-body {
+    flex: 1;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+}
+
+.tutorial-container {
+    display: flex;
+    height: 100%;
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* 教程侧边栏 */
+.tutorial-sidebar {
+    width: 300px;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tutorial-search {
+    padding: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.tutorial-search input {
+    width: 100%;
+    padding: 10px 35px 10px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    transition: all 0.3s ease;
+}
+
+.tutorial-search input:focus {
+    outline: none;
+    border-color: #667eea;
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.tutorial-search input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.tutorial-search i {
+    position: absolute;
+    right: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.6);
+    pointer-events: none;
+}
+
+.tutorial-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 0;
+}
+
+.tutorial-list {
+    padding: 0 10px;
+}
+
+.tutorial-item {
+    padding: 12px 15px;
+    margin: 2px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.tutorial-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+    border-left-color: #667eea;
+}
+
+.tutorial-item.active {
+    background: rgba(102, 126, 234, 0.8);
+    color: white;
+    border-left-color: #764ba2;
+    transform: translateX(5px);
+}
+
+.tutorial-item-title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 3px;
+}
+
+.tutorial-item-number {
+    font-size: 12px;
+    opacity: 0.7;
+    font-weight: 400;
+}
+
+.tutorial-item.active .tutorial-item-number {
+    opacity: 0.9;
+}
+
+/* 教程内容区域 */
+.tutorial-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: rgba(26, 26, 26, 0.98);
+    overflow: hidden;
+}
+
+.tutorial-breadcrumb {
+    padding: 15px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.tutorial-viewer {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    height: 100%;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(15px);
+    border-radius: 8px;
+    margin: 0;
+}
+
+.tutorial-viewer-content {
+    max-width: 800px;
+    margin: 0 auto;
+    line-height: 1.6;
+    font-size: 16px;
+    color: #e2e8f0;
+}
+
+.tutorial-welcome {
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.tutorial-welcome h2 {
+    color: #667eea;
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.tutorial-welcome p {
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+/* Markdown 内容样式 */
+.tutorial-viewer-content h1 {
+    color: #f7fafc;
+    font-size: 28px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #667eea;
+}
+
+.tutorial-viewer-content h2 {
+    color: #e2e8f0;
+    font-size: 22px;
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+.tutorial-viewer-content h3 {
+    color: #cbd5e0;
+    font-size: 18px;
+    margin-top: 25px;
+    margin-bottom: 12px;
+}
+
+.tutorial-viewer-content h4 {
+    color: #a0aec0;
+    font-size: 16px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.tutorial-viewer-content p {
+    margin-bottom: 15px;
+    color: #e2e8f0;
+}
+
+.tutorial-viewer-content ul, 
+.tutorial-viewer-content ol {
+    margin-bottom: 15px;
+    padding-left: 25px;
+}
+
+.tutorial-viewer-content li {
+    margin-bottom: 8px;
+    color: #e2e8f0;
+}
+
+.tutorial-viewer-content blockquote {
+    border-left: 4px solid #667eea;
+    padding-left: 20px;
+    margin: 20px 0;
+    font-style: italic;
+    color: #a0aec0;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 15px 20px;
+    border-radius: 0 8px 8px 0;
+}
+
+.tutorial-viewer-content code {
+    background: rgba(102, 126, 234, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    color: #90cdf4;
+}
+
+.tutorial-viewer-content pre {
+    background: #2d3748;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 15px 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-viewer-content pre code {
+    background: none;
+    padding: 0;
+    color: #e2e8f0;
+}
+
+.tutorial-viewer-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+    background: #2d3748;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.tutorial-viewer-content th,
+.tutorial-viewer-content td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+}
+
+.tutorial-viewer-content th {
+    background: rgba(102, 126, 234, 0.2);
+    font-weight: 600;
+    color: #90cdf4;
+}
+
+.tutorial-viewer-content tr:last-child td {
+    border-bottom: none;
+}
+
+.tutorial-viewer-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 15px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 交叉引用链接样式 */
+.tutorial-viewer-content a {
+    color: #90cdf4;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    padding: 2px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.tutorial-viewer-content a:hover {
+    background: rgba(102, 126, 234, 0.2);
+    text-decoration: underline;
+    color: #bfdbfe;
+}
+
+.tutorial-viewer-content a.cross-reference {
+    background: rgba(102, 126, 234, 0.2);
+    padding: 4px 8px;
+    border-radius: 15px;
+    font-size: 14px;
+    display: inline-block;
+    margin: 2px;
+    color: #bfdbfe;
+    cursor: pointer;
+    border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+.tutorial-viewer-content a.cross-reference:hover {
+    background: rgba(102, 126, 234, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    border-color: rgba(102, 126, 234, 0.5);
+}
+
+/* 滚动条样式 */
+.tutorial-nav::-webkit-scrollbar,
+.tutorial-viewer::-webkit-scrollbar {
+    width: 6px;
+}
+
+.tutorial-nav::-webkit-scrollbar-track,
+.tutorial-viewer::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tutorial-nav::-webkit-scrollbar-thumb,
+.tutorial-viewer::-webkit-scrollbar-thumb {
+    background: rgba(102, 126, 234, 0.3);
+    border-radius: 3px;
+}
+
+.tutorial-nav::-webkit-scrollbar-thumb:hover,
+.tutorial-viewer::-webkit-scrollbar-thumb:hover {
+    background: rgba(102, 126, 234, 0.5);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .tutorial-container {
+        flex-direction: column;
+    }
+    
+    .tutorial-sidebar {
+        width: 100%;
+        height: 200px;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .tutorial-content {
+        flex: 1;
+    }
+}
+
+/* 加载动画 */
+.tutorial-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    color: #667eea;
+}
+
+.tutorial-loading i {
+    margin-right: 10px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 错误提示样式 */
+.tutorial-error {
+    text-align: center;
+    padding: 40px;
+    color: #fc8181;
+}
+
+.tutorial-error h3 {
+    margin-bottom: 10px;
+    color: #fc8181;
+}
+
+.tutorial-error p {
+    color: #a0aec0;
+    margin-bottom: 0;
+}
+
+/* 搜索结果高亮 */
+.tutorial-item.search-match {
+    background: rgba(255, 193, 7, 0.2);
+    border-left-color: #ffc107;
+}
+
+.tutorial-item.search-match:hover {
+    background: rgba(255, 193, 7, 0.3);
+}
+
+/* 目录特殊样式 */
+.tutorial-item.directory {
+    background: rgba(102, 126, 234, 0.2);
+    border-left-color: #667eea;
+    font-weight: 600;
+}
+
+.tutorial-item.directory:hover {
+    background: rgba(102, 126, 234, 0.3);
+}
+
+.tutorial-item.directory.active {
+    background: rgba(102, 126, 234, 0.9);
+}

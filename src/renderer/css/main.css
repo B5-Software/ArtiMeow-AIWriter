@@ -1,0 +1,2420 @@
+/* 增强的文字对比度样式 */
+:root {
+  /* 提高文本对比度 */
+  --text-primary-contrast: #ffffff;
+  --text-secondary-contrast: #e5e5e5;
+  --text-muted-contrast: #b0b0b0;
+  --text-inverse: #000000;
+  
+  /* 深色主题下的文本颜色 */
+  --text-on-dark: #ffffff;
+  --text-on-dark-secondary: #e0e0e0;
+  --text-on-dark-muted: #b8b8b8;
+  
+  /* 浅色主题下的文本颜色 */
+  --text-on-light: #1a1a1a;
+  --text-on-light-secondary: #4a4a4a;
+  --text-on-light-muted: #666666;
+  
+  /* 背景对比色 */
+  --bg-contrast-dark: #0a0a0a;
+  --bg-contrast-light: #f8f8f8;
+}
+
+/* 确保所有文本都有足够的对比度 */
+body,
+.text-primary,
+.sidebar-header h3,
+.chapter-item h4,
+.editor-header .tab,
+.toolbar-btn,
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.btn-danger,
+.btn-warning,
+.btn-info,
+.modal-title,
+.form-label,
+.form-control,
+.status-bar,
+.git-panel h4,
+.ai-result-header h4 {
+  color: var(--text-primary-contrast) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* 次要文本保持较高对比度 */
+.text-secondary,
+.chapter-item p,
+.status-text,
+.git-status,
+.ai-status,
+.save-status,
+.editor-toolbar .word-count {
+  color: var(--text-secondary-contrast) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* 静音文本也要保持可读性 */
+.text-muted,
+.loading-status,
+.version-info,
+.modal-body small {
+  color: var(--text-muted-contrast) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 在不同背景上的文本对比度 */
+.bg-primary,
+.bg-secondary,
+.bg-tertiary,
+.sidebar,
+.main-content,
+.editor-container,
+.modal-content,
+.titlebar {
+  color: var(--text-on-dark);
+}
+
+.bg-light,
+.card,
+.form-group,
+.input-group {
+  color: var(--text-on-light);
+}
+
+/* 按钮文本对比度增强 */
+.btn-primary {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  border: 1px solid var(--primary-dark);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btn-secondary {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  border: 1px solid #495057;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btn-success {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, var(--success-color) 0%, #00a085 100%);
+  border: 1px solid #00a085;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btn-danger {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, var(--danger-color) 0%, #d63384 100%);
+  border: 1px solid #d63384;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btn-warning {
+  color: #000000 !important;
+  background: linear-gradient(135deg, var(--warning-color) 0%, #f39c12 100%);
+  border: 1px solid #f39c12;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+.btn-info {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, var(--info-color) 0%, #0766c7 100%);
+  border: 1px solid #0766c7;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 自定义窗口控制按钮 */
+.titlebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+    z-index: 1001;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.titlebar-drag-area {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    -webkit-app-region: drag;
+}
+
+.titlebar-title {
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    user-select: none;
+}
+
+.titlebar-controls {
+    display: flex;
+    height: 100%;
+    -webkit-app-region: no-drag;
+}
+
+.titlebar-button {
+    width: 46px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 12px;
+}
+
+.titlebar-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.titlebar-button.close:hover {
+    background-color: #e81123;
+}
+
+.titlebar-button:active {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.titlebar-button.close:active {
+    background-color: #c50e1f;
+}
+
+/* 主样式文件 */
+:root {
+  /* 颜色变量 */
+  --primary-color: #6c5ce7;
+  --primary-dark: #5a4fcf;
+  --primary-light: #a29bfe;
+  --secondary-color: #fd79a8;
+  --success-color: #00b894;
+  --warning-color: #fdcb6e;
+  --danger-color: #e84393;
+  --info-color: #0984e3;
+  
+  /* 背景色 */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f1419;
+  --bg-modal: rgba(0, 0, 0, 0.8);
+  --modal-bg: rgba(255, 255, 255, 0.1);
+  
+  /* 文本色 */
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666666;
+  --text-color: #333;
+  
+  /* 边框色 */
+  --border-color: #333333;
+  --border-light: #444444;
+  
+  /* 阴影 */
+  --shadow-small: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-large: 0 8px 32px rgba(0, 0, 0, 0.4);
+  
+  /* 字体 */
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-mono: 'Courier New', monospace;
+  
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* 边框圆角 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  
+  /* 过渡 */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* 基础样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  line-height: 1.5;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
+/* 工具类 */
+.hidden {
+  display: none !important;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+
+.mb-sm { margin-bottom: var(--spacing-sm); }
+.mb-md { margin-bottom: var(--spacing-md); }
+.mb-lg { margin-bottom: var(--spacing-lg); }
+
+.ml-sm { margin-left: var(--spacing-sm); }
+.ml-md { margin-left: var(--spacing-md); }
+.ml-lg { margin-left: var(--spacing-lg); }
+
+.mr-sm { margin-right: var(--spacing-sm); }
+.mr-md { margin-right: var(--spacing-md); }
+.mr-lg { margin-right: var(--spacing-lg); }
+
+/* 加载屏幕 */
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 10000;
+  transition: opacity var(--transition-slow);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 400px;
+  padding: 40px;
+}
+
+.loading-logo {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.app-name {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  text-shadow: 0 0 20px rgba(139, 69, 19, 0.5);
+  background: linear-gradient(45deg, #D4AF37, #FFD700, #F4A460);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: glow 3s ease-in-out infinite alternate;
+}
+
+.app-subtitle {
+  font-size: 1.2rem;
+  color: #888;
+  margin: 8px 0 0 0;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 300;
+}
+
+.version-info {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 16px;
+  opacity: 0.8;
+}
+
+.loading-progress-container {
+  width: 100%;
+  margin-bottom: 30px;
+}
+
+.loading-progress {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #D4AF37, #FFD700);
+  border-radius: 1px;
+  animation: loading 2s infinite ease-in-out;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+.loading-status {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #bbb;
+  margin-bottom: 10px;
+}
+
+.loading-logs {
+  width: 100%;
+  max-height: 120px;
+  overflow-y: auto;
+  border-top: 1px solid #333;
+  padding-top: 15px;
+}
+
+.log-item {
+  font-size: 0.8rem;
+  color: #777;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.log-item:before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background: #444;
+}
+
+.log-item.active {
+  color: #D4AF37;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.log-item.active:before {
+  background: #D4AF37;
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.5);
+}
+
+.log-item.completed {
+  color: #4CAF50;
+}
+
+.log-item.completed:before {
+  background: #4CAF50;
+  content: '✓';
+  color: #fff;
+  font-size: 10px;
+  text-align: center;
+  line-height: 6px;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+}
+
+/* 主应用容器 */
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 标题栏 */
+.title-bar {
+  height: 35px;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+  -webkit-app-region: drag;
+}
+
+.title-bar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.app-icon {
+  color: var(--primary-color);
+  font-size: 1.2rem;
+}
+
+.app-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.title-bar-center {
+  flex: 1;
+  text-align: center;
+}
+
+.current-project {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.title-bar-right {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.title-btn {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.title-btn.close:hover {
+  background: var(--danger-color);
+  color: white;
+}
+
+/* 主内容区域 */
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 侧边栏 */
+.sidebar {
+  width: 300px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* 隐藏滚动条但保持功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.sidebar-header {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h3 {
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.sidebar-section {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-section h4 {
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.recent-projects {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.project-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  margin-bottom: var(--spacing-xs);
+}
+
+.project-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.project-item.active {
+  background: var(--primary-color);
+}
+
+.project-item .project-details {
+  flex: 1;
+}
+
+.project-item .project-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.project-item .project-path {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.project-info {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.chapters-list {
+  /* 移除最大高度和滚动 */
+  margin-bottom: var(--spacing-sm);
+}
+
+.chapter-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  margin-bottom: var(--spacing-xs);
+}
+
+.chapter-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.chapter-item.active {
+  background: var(--primary-color);
+}
+
+.chapter-item .chapter-icon {
+  width: 24px;
+  height: 24px;
+  background: var(--secondary-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--spacing-sm);
+  color: white;
+  font-size: 0.8rem;
+}
+
+.chapter-item .chapter-details {
+  flex: 1;
+}
+
+.chapter-item .chapter-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chapter-item .chapter-info {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* 编辑器容器 */
+.editor-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.editor-tabs {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.tab {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.9rem;
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.tab.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+.editor-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* 编辑器面板 */
+.editor-panel {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-panel.active {
+  display: flex;
+}
+
+/* 状态栏 */
+.status-bar {
+  height: 30px;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-md);
+  font-size: 0.8rem;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.status-right span {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.status-right .fas {
+  font-size: 0.7rem;
+}
+
+/* 基础按钮样式 */
+.btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  text-decoration: none;
+  outline: none;
+  position: relative;
+  overflow: hidden;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn:hover::before {
+  left: 100%;
+}
+
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+}
+
+/* 按钮尺寸 */
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  min-height: 24px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  min-height: 30px;
+}
+
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 1rem;
+  min-height: 44px;
+}
+
+/* 按钮颜色变体 */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  color: white;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(108, 92, 231, 0.3);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+  border-color: var(--border-light);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.btn-success {
+  background: var(--success-color);
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #00a085;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-small);
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #d63384;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-small);
+}
+
+.btn-ai {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.btn-ai:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-small);
+}
+
+/* 表单样式 */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: var(--transition-fast);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+}
+
+.form-group input[type="checkbox"] {
+  width: auto;
+  margin-right: var(--spacing-sm);
+}
+
+.form-group input[type="range"] {
+  width: calc(100% - 60px);
+  margin-right: var(--spacing-sm);
+}
+
+/* 模态框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal.show .modal-content {
+    transform: scale(1);
+}
+
+.modal-content.large {
+    max-width: 800px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.modal-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.footer-left {
+  flex: 1;
+}
+
+.footer-right {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.made-by {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* 设置相关样式 */
+.settings-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--spacing-md);
+}
+
+.settings-tab {
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: var(--transition-fast);
+  color: var(--text-secondary);
+}
+
+.settings-tab:hover {
+  color: var(--text-primary);
+}
+
+.settings-tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.settings-content {
+  min-height: 300px;
+}
+
+.settings-panel {
+  display: none;
+}
+
+.settings-panel.active {
+  display: block;
+}
+
+.engine-settings {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+/* 设置面板样式扩展 */
+.custom-font-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.custom-font-container button {
+    min-width: 120px;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-group input {
+    flex: 1;
+}
+
+.input-group button {
+    min-width: 100px;
+}
+
+.engine-settings {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.engine-settings h5 {
+    margin-bottom: 15px;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.engine-settings.hidden {
+    display: none;
+}
+
+/* 滑块输入样式 */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 5px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+input[type="range"]:hover {
+    opacity: 1;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 设置面板按钮样式 */
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    border-radius: 4px;
+    white-space: nowrap;
+    margin: 2px;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ff9800, #ff6f00);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #ff6f00, #e65100);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #2196f3, #0d47a1);
+    color: white;
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #0d47a1, #01579b);
+}
+
+/* 主题相关样式 */
+body.light-theme {
+    --bg-color: #f5f5f5;
+    --secondary-bg: #ffffff;
+    --text-color: #2c3e50;
+    --text-secondary: #555555;
+    --text-primary: #2c3e50;
+    --border-color: #e0e0e0;
+    --primary-color: #6c5ce7;
+    --primary-hover: #5a4fd8;
+    --success-color: #00b894;
+    --error-color: #e17055;
+    --warning-color: #e67e22;
+}
+
+/* 浅色模式下移除文本阴影 */
+body.light-theme .status-text,
+body.light-theme .git-status,
+body.light-theme .ai-status,
+body.light-theme .save-status,
+body.light-theme .editor-toolbar .word-count,
+body.light-theme .text-muted,
+body.light-theme .loading-status,
+body.light-theme .version-info,
+body.light-theme .modal-body small,
+body.light-theme .btn-primary,
+body.light-theme .btn-secondary,
+body.light-theme .toolbar-btn,
+body.light-theme .sidebar-header h3,
+body.light-theme .chapter-item h4,
+body.light-theme .chapter-item p,
+body.light-theme .git-panel h4,
+body.light-theme .ai-result-header h4,
+body.light-theme .modal-title,
+body.light-theme .form-label,
+body.light-theme .editor-header .tab {
+  text-shadow: none !important;
+}
+
+/* 浅色模式下的文本颜色调整 */
+body.light-theme .text-muted {
+  color: #6c757d !important;
+}
+
+body.light-theme .status-text,
+body.light-theme .git-status,
+body.light-theme .ai-status,
+body.light-theme .save-status {
+  color: var(--text-secondary) !important;
+}
+
+/* 浅色模式下所有白色文本改为深色 */
+body.light-theme .toolbar-btn,
+body.light-theme .sidebar-header h3,
+body.light-theme .chapter-item h4,
+body.light-theme .chapter-item p,
+body.light-theme .git-panel h4,
+body.light-theme .ai-result-header h4,
+body.light-theme .modal-title,
+body.light-theme .form-label,
+body.light-theme .editor-header .tab,
+body.light-theme .editor-header .tab.active,
+body.light-theme .git-tab,
+body.light-theme .git-tab.active,
+body.light-theme .settings-tab,
+body.light-theme .settings-tab.active {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下按钮文本颜色 */
+body.light-theme .btn-primary {
+  color: white !important;
+}
+
+body.light-theme .btn-secondary {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下的全局文本颜色覆盖 */
+body.light-theme,
+body.light-theme *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger) {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下保持按钮正确的文本颜色 */
+body.light-theme .btn-primary,
+body.light-theme .btn-success,
+body.light-theme .btn-info,
+body.light-theme .btn-warning,
+body.light-theme .btn-danger {
+  color: white !important;
+}
+
+/* 浅色模式下的输入框文本颜色 */
+body.light-theme input,
+body.light-theme textarea,
+body.light-theme select {
+  color: var(--text-primary) !important;
+  background-color: white !important;
+}
+
+/* 浅色模式下的侧边栏文本颜色 */
+body.light-theme .sidebar,
+body.light-theme .sidebar *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger) {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下的编辑器文本颜色 */
+body.light-theme .editor-textarea,
+body.light-theme .editor-textarea *,
+body.light-theme #editor-textarea {
+  color: var(--text-primary) !important;
+  background-color: white !important;
+}
+
+/* 浅色模式下的模态框文本颜色 */
+body.light-theme .modal,
+body.light-theme .modal *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger) {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下的面板文本颜色 */
+body.light-theme .git-panel,
+body.light-theme .git-panel *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger),
+body.light-theme .ai-panel,
+body.light-theme .ai-panel *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger),
+body.light-theme .settings-panel,
+body.light-theme .settings-panel *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger) {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下的章节列表文本颜色 */
+body.light-theme .chapter-list,
+body.light-theme .chapter-list *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger) {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下的工具栏文本颜色 */
+body.light-theme .toolbar,
+body.light-theme .toolbar *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger),
+body.light-theme .editor-toolbar,
+body.light-theme .editor-toolbar *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger) {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下的下拉菜单文本颜色 */
+body.light-theme .dropdown-menu,
+body.light-theme .dropdown-menu *,
+body.light-theme .context-menu,
+body.light-theme .context-menu * {
+  color: var(--text-primary) !important;
+  background-color: white !important;
+}
+
+/* 浅色模式下的表单文本颜色 */
+body.light-theme .form-group,
+body.light-theme .form-group *:not(.btn-primary):not(.btn-success):not(.btn-info):not(.btn-warning):not(.btn-danger) {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下的标签页文本颜色 */
+body.light-theme .tab,
+body.light-theme .tab *,
+body.light-theme .tab-content,
+body.light-theme .tab-content * {
+  color: var(--text-primary) !important;
+}
+
+/* Git只读视图样式 */
+.git-readonly-section {
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+.git-readonly-section h4 {
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.current-branch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.branches-list, .remotes-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.branch-item, .remote-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.2s ease;
+}
+
+.branch-item:hover, .remote-item:hover {
+  background: var(--bg-hover);
+}
+
+.branch-item.active {
+  background: rgba(108, 92, 231, 0.1);
+  border-left: 3px solid var(--primary-color);
+}
+
+.remote-item {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.remote-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.remote-url {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 20px;
+}
+
+.badge {
+  background: var(--primary-color);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  margin-left: auto;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.git-operations-guide {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.git-operations-guide h4 {
+  margin: 0 0 12px 0;
+  border: none;
+  padding: 0;
+  color: var(--primary-color);
+}
+
+.git-operations-guide ul {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+
+.git-operations-guide li {
+  margin: 8px 0;
+  color: var(--text-primary);
+}
+
+.git-operations-guide code {
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  color: var(--primary-color);
+}
+
+.git-operations-guide button {
+  margin-top: 12px;
+}
+
+body.dark-theme {
+    --bg-color: #1a1a1a;
+    --secondary-bg: #2d2d2d;
+    --text-color: #ffffff;
+    --text-secondary: #cccccc;
+    --border-color: #404040;
+    --primary-color: #6c5ce7;
+    --primary-hover: #5a4fd8;
+    --success-color: #00b894;
+    --error-color: #e17055;
+    --warning-color: #fdcb6e;
+}
+
+/* 字体预览样式 */
+.font-preview {
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--secondary-bg);
+    font-size: 16px;
+    color: var(--text-color);
+}
+
+/* 自动保存指示器 */
+.auto-save-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--success-color);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.auto-save-indicator.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* 备份状态指示器 */
+.backup-indicator {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    background: var(--primary-color);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.backup-indicator.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* 字体加载指示器 */
+.font-loading {
+    display: inline-block;
+    margin-left: 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+/* 自定义滚动条样式 */
+.settings-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
+}
+
+/* Git面板样式 - 现代化设计 */
+.git-tabs {
+  display: flex;
+  background: var(--bg-secondary);
+  border-radius: 10px 10px 0 0;
+  margin: -24px -24px 0 -24px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.git-tab {
+  flex: 1;
+  padding: 16px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  position: relative;
+  user-select: none;
+}
+
+.git-tab:hover {
+  color: var(--text-color);
+  background: var(--bg-tertiary);
+}
+
+.git-tab.active {
+  color: var(--primary-color);
+  background: var(--bg-primary);
+}
+
+.git-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+}
+
+/* Git 面板样式 - 重新设计 */
+.git-panel {
+  display: none;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border-radius: 0 0 12px 12px;
+  border: 1px solid var(--border-color);
+  border-top: none;
+  margin: 0 -24px 24px -24px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-height: 400px;
+}
+
+.git-panel.active {
+  display: flex;
+}
+
+/* Git 增强版操作按钮区域 */
+.git-enhanced-actions {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* Git 按钮样式 */
+.git-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 80px;
+  justify-content: center;
+}
+
+.git-btn i {
+  font-size: 12px;
+}
+
+.git-btn-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  color: white;
+}
+
+.git-btn-primary:hover {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(108, 92, 231, 0.3);
+}
+
+.git-btn-secondary {
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.git-btn-secondary:hover {
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.git-btn-success {
+  background: linear-gradient(135deg, var(--success-color), #22c55e);
+  color: white;
+}
+
+.git-btn-success:hover {
+  background: linear-gradient(135deg, #22c55e, var(--success-color));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(34, 197, 94, 0.3);
+}
+
+.git-btn-danger {
+  background: linear-gradient(135deg, var(--error-color), #ef4444);
+  color: white;
+}
+
+.git-btn-danger:hover {
+  background: linear-gradient(135deg, #ef4444, var(--error-color));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Git 内容区域 */
+.git-enhanced-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+}
+
+/* Git 加载状态 */
+.git-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  gap: 8px;
+}
+
+.git-loading i {
+  animation: spin 1s linear infinite;
+}
+
+/* Git 选择器样式 */
+.git-branch-selector,
+.git-remote-selector {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.git-branch-selector label,
+.git-remote-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.git-select {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.git-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+}
+
+/* Git 列表样式 */
+.git-branches-list,
+.git-remotes-list {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.git-branch-item,
+.git-remote-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.2s ease;
+}
+
+.git-branch-item:last-child,
+.git-remote-item:last-child {
+  border-bottom: none;
+}
+
+.git-branch-item:hover,
+.git-remote-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.git-branch-info,
+.git-remote-info {
+  flex: 1;
+}
+
+.git-branch-name,
+.git-remote-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.git-branch-detail,
+.git-remote-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.git-branch-actions,
+.git-remote-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.git-branch-actions .git-btn,
+.git-remote-actions .git-btn {
+  padding: 4px 8px;
+  font-size: 11px;
+  min-width: auto;
+}
+
+/* Git 状态显示 */
+.git-status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.git-status-item.modified {
+  border-left-color: var(--warning-color);
+}
+
+.git-status-item.added {
+  border-left-color: var(--success-color);
+}
+
+.git-status-item.deleted {
+  border-left-color: var(--error-color);
+}
+
+.git-status-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 10px;
+  color: white;
+  font-weight: bold;
+}
+
+.git-status-icon.modified {
+  background: var(--warning-color);
+}
+
+.git-status-icon.added {
+  background: var(--success-color);
+}
+
+.git-status-icon.deleted {
+  background: var(--error-color);
+}
+
+.git-status-file {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.git-status-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.git-status-actions .git-btn {
+  padding: 2px 6px;
+  font-size: 10px;
+  min-width: auto;
+}
+
+/* Git 历史记录样式 */
+.git-commit-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.2s ease;
+}
+
+.git-commit-item:hover {
+  background: var(--bg-secondary);
+}
+
+.git-commit-hash {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 80px;
+}
+
+.git-commit-info {
+  flex: 1;
+}
+
+.git-commit-message {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.git-commit-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .git-enhanced-actions {
+    padding: 12px 16px;
+  }
+  
+  .git-btn {
+    padding: 6px 12px;
+    font-size: 11px;
+    min-width: 60px;
+  }
+  
+  .git-enhanced-content {
+    padding: 16px;
+  }
+  
+  .git-branch-item,
+  .git-remote-item {
+    padding: 10px 12px;
+  }
+  
+  .git-commit-item {
+    padding: 10px 12px;
+  }
+}
+
+.git-content {
+  flex: 1;
+  padding: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.git-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.git-file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.git-file-item:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.git-file-status {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  min-width: 32px;
+  text-align: center;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.git-file-status.M { background: linear-gradient(135deg, #f39c12, #e67e22); } /* Modified */
+.git-file-status.A { background: linear-gradient(135deg, #27ae60, #229954); } /* Added */
+.git-file-status.D { background: linear-gradient(135deg, #e74c3c, #c0392b); } /* Deleted */
+.git-file-status.R { background: linear-gradient(135deg, #3498db, #2980b9); } /* Renamed */
+.git-file-status.U { background: linear-gradient(135deg, #9b59b6, #8e44ad); } /* Untracked */
+.git-file-status.C { background: linear-gradient(135deg, #1abc9c, #16a085); } /* Copied */
+
+.git-file-path {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.git-branch-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.git-branch-name {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: rgba(108, 92, 231, 0.1);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.git-commit-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.git-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.git-empty-state i {
+  font-size: 64px;
+  margin-bottom: 20px;
+  opacity: 0.3;
+  color: var(--primary-color);
+}
+
+.git-empty-state h3 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.git-empty-state p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Git状态指示器 */
+.git-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.git-status i {
+  font-size: 12px;
+}
+
+.git-status.connected {
+  color: #27ae60;
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(46, 204, 113, 0.1));
+  border-color: rgba(39, 174, 96, 0.3);
+}
+
+.git-status.disconnected {
+  color: #e74c3c;
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(192, 57, 43, 0.1));
+  border-color: rgba(231, 76, 60, 0.3);
+}
+
+.git-status.changes {
+  color: #f39c12;
+  background: linear-gradient(135deg, rgba(243, 156, 18, 0.1), rgba(230, 126, 34, 0.1));
+  border-color: rgba(243, 156, 18, 0.3);
+}
+
+/* Git模态框优化 */
+#git-modal .modal-content {
+  max-width: 900px;
+}
+
+#git-modal .modal-body {
+  padding: 24px;
+}
+
+/* 右键菜单样式 */
+.context-menu {
+    position: fixed;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    padding: 4px 0;
+    min-width: 180px;
+    z-index: 10000;
+    display: none;
+    backdrop-filter: blur(10px);
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s ease;
+}
+
+.context-menu-item:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    /* 增强hover效果 */
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.context-menu-item i {
+    color: var(--primary-color);
+    text-shadow: none;
+}
+
+.context-menu-item:hover i {
+    color: #ffffff;
+}
+
+.context-menu-item kbd {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 11px;
+    margin-left: auto;
+}
+
+.context-menu-item:hover kbd {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+/* 浅色模式下其他白色文本元素修复 */
+body.light-theme .status-bar,
+body.light-theme .status-left,
+body.light-theme .status-right,
+body.light-theme .status-right span,
+body.light-theme .save-status,
+body.light-theme .word-count,
+body.light-theme .version-info,
+body.light-theme .modal-footer,
+body.light-theme .footer-left,
+body.light-theme .footer-right,
+body.light-theme .notification,
+body.light-theme .loading-status,
+body.light-theme .progress-text,
+body.light-theme .log-item,
+body.light-theme .log-item .log-icon,
+body.light-theme .log-item .log-text,
+body.light-theme .ai-model-select,
+body.light-theme .ai-temperature-control,
+body.light-theme .ai-result-content,
+body.light-theme .git-file-name,
+body.light-theme .git-status-label,
+body.light-theme .git-branch-details p,
+body.light-theme .settings-description,
+body.light-theme .settings-group label,
+body.light-theme .chapter-meta,
+body.light-theme .chapter-stats,
+body.light-theme .project-meta,
+body.light-theme .project-stats,
+body.light-theme .search-results,
+body.light-theme .search-result-item,
+body.light-theme .context-menu,
+body.light-theme .context-menu-item {
+  color: var(--text-primary) !important;
+}
+
+/* 浅色模式下次要文本颜色 */
+body.light-theme .text-secondary,
+body.light-theme .text-muted,
+body.light-theme .chapter-item p,
+body.light-theme .git-branch-details p,
+body.light-theme .settings-description,
+body.light-theme .modal-body small,
+body.light-theme .version-info,
+body.light-theme .log-item .log-text {
+  color: var(--text-secondary) !important;
+}
+
+/* 浅色模式下确保白色背景上的文本可见 */
+body.light-theme .modal-content,
+body.light-theme .dropdown-menu,
+body.light-theme .tooltip,
+body.light-theme .popover,
+body.light-theme .form-control,
+body.light-theme .form-select,
+body.light-theme .form-check-label,
+body.light-theme .nav-link,
+body.light-theme .tab-pane,
+body.light-theme .card,
+body.light-theme .card-body,
+body.light-theme .card-header,
+body.light-theme .card-footer,
+body.light-theme .list-group-item,
+body.light-theme .table,
+body.light-theme .table td,
+body.light-theme .table th {
+  color: var(--text-primary) !important;
+}
+
+/* Git 教程样式 */
+.git-tutorial-content {
+    max-width: 600px;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.git-tutorial-content h3 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.git-tutorial-content h4 {
+    color: var(--text-color);
+    margin: 15px 0 8px 0;
+    font-weight: bold;
+}
+
+.git-command-group {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: var(--input-bg);
+    border-radius: 6px;
+    border-left: 3px solid var(--primary-color);
+}
+
+.git-command-group code {
+    background: var(--bg-color);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--primary-color);
+    display: inline-block;
+    margin: 2px 0;
+}
+
+/* Git 教程浮窗主要样式 */
+.git-tutorial-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    backdrop-filter: blur(5px);
+}
+
+.git-tutorial-popup.show {
+    display: flex;
+    animation: fadeIn 0.3s ease;
+}
+
+.git-tutorial-content {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    max-height: 80vh;
+    width: 90%;
+    overflow: hidden;
+    animation: slideUp 0.3s ease;
+}
+
+.git-tutorial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: var(--primary-color);
+    color: white;
+}
+
+.git-tutorial-header h3 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: white;
+}
+
+.git-tutorial-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.git-tutorial-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.git-tutorial-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { 
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to { 
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .git-tutorial-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .git-tutorial-header {
+        padding: 15px;
+    }
+    
+    .git-tutorial-body {
+        padding: 15px;
+        max-height: 70vh;
+    }
+    
+    .git-tutorial-header h3 {
+        font-size: 1.2rem;
+    }
+}
