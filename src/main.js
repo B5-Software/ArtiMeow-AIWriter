@@ -2479,9 +2479,35 @@ ipcMain.handle('git-get-remote-branches', async (event, projectPath, remoteName 
 // 获取教程目录
 ipcMain.handle('get-tutorial-directory', async () => {
   try {
-    const tutorialPath = isPackaged ? 
-      path.join(process.resourcesPath, 'tutorial') :
-      path.join(__dirname, '..', 'tutorial')
+    // 处理打包后的路径问题
+    let tutorialPath
+    if (isPackaged) {
+      // 打包后，tutorial目录可能在多个位置
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'tutorial'),
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'tutorial'),
+        path.join(__dirname, '..', '..', 'tutorial'),
+        path.join(__dirname, '..', 'tutorial')
+      ]
+      
+      for (const possiblePath of possiblePaths) {
+        try {
+          await fs.access(possiblePath)
+          tutorialPath = possiblePath
+          break
+        } catch (e) {
+          // 继续尝试下一个路径
+        }
+      }
+      
+      if (!tutorialPath) {
+        console.error('在打包环境中找不到教程目录，尝试的路径:', possiblePaths)
+        throw new Error('找不到教程目录')
+      }
+    } else {
+      tutorialPath = path.join(__dirname, '..', 'tutorial')
+    }
+    
     return tutorialPath
   } catch (error) {
     console.error('获取教程目录失败:', error)
@@ -2492,9 +2518,36 @@ ipcMain.handle('get-tutorial-directory', async () => {
 // 读取所有教程文件
 ipcMain.handle('read-tutorial-files', async () => {
   try {
-    const tutorialPath = isPackaged ? 
-      path.join(process.resourcesPath, 'tutorial') :
-      path.join(__dirname, '..', 'tutorial')
+    // 处理打包后的路径问题
+    let tutorialPath
+    if (isPackaged) {
+      // 打包后，tutorial目录可能在多个位置
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'tutorial'),
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'tutorial'),
+        path.join(__dirname, '..', '..', 'tutorial'),
+        path.join(__dirname, '..', 'tutorial')
+      ]
+      
+      for (const possiblePath of possiblePaths) {
+        try {
+          await fs.access(possiblePath)
+          tutorialPath = possiblePath
+          break
+        } catch (e) {
+          // 继续尝试下一个路径
+        }
+      }
+      
+      if (!tutorialPath) {
+        console.error('在打包环境中找不到教程目录，尝试的路径:', possiblePaths)
+        throw new Error('找不到教程目录')
+      }
+    } else {
+      tutorialPath = path.join(__dirname, '..', 'tutorial')
+    }
+    
+    console.log('读取教程文件，路径:', tutorialPath)
     const files = await fs.readdir(tutorialPath)
     
     const tutorialFiles = []
@@ -2520,9 +2573,35 @@ ipcMain.handle('read-tutorial-files', async () => {
 // 读取单个教程文件
 ipcMain.handle('read-tutorial-file', async (event, filename) => {
   try {
-    const tutorialPath = isPackaged ? 
-      path.join(process.resourcesPath, 'tutorial') :
-      path.join(__dirname, '..', 'tutorial')
+    // 处理打包后的路径问题
+    let tutorialPath
+    if (isPackaged) {
+      // 打包后，tutorial目录可能在多个位置
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'tutorial'),
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'tutorial'),
+        path.join(__dirname, '..', '..', 'tutorial'),
+        path.join(__dirname, '..', 'tutorial')
+      ]
+      
+      for (const possiblePath of possiblePaths) {
+        try {
+          await fs.access(possiblePath)
+          tutorialPath = possiblePath
+          break
+        } catch (e) {
+          // 继续尝试下一个路径
+        }
+      }
+      
+      if (!tutorialPath) {
+        console.error('在打包环境中找不到教程目录，尝试的路径:', possiblePaths)
+        throw new Error('找不到教程目录')
+      }
+    } else {
+      tutorialPath = path.join(__dirname, '..', 'tutorial')
+    }
+    
     const filePath = path.join(tutorialPath, filename)
     
     // 检查文件是否存在
@@ -3221,7 +3300,49 @@ function setupWebServerDataAccess(server) {
   // 获取教程文件
   dataAccessor.getTutorialFiles = async function() {
     try {
-      const tutorialDir = path.join(__dirname, '..', 'tutorial')
+      // 处理打包后的路径问题
+      let tutorialDir
+      if (app.isPackaged) {
+        // 打包后，tutorial目录可能在多个位置
+        const possiblePaths = [
+          path.join(process.resourcesPath, 'tutorial'),
+          path.join(process.resourcesPath, 'app.asar.unpacked', 'tutorial'),
+          path.join(__dirname, '..', '..', 'tutorial'),
+          path.join(__dirname, '..', 'tutorial')
+        ]
+        
+        for (const possiblePath of possiblePaths) {
+          if (await fs.pathExists(possiblePath)) {
+            tutorialDir = possiblePath
+            break
+          }
+        }
+        
+        if (!tutorialDir) {
+          console.error('在打包环境中找不到教程目录，尝试的路径:', possiblePaths)
+          return {
+            success: false,
+            files: [],
+            error: '找不到教程目录'
+          }
+        }
+      } else {
+        // 开发环境
+        tutorialDir = path.join(__dirname, '..', 'tutorial')
+      }
+      
+      console.log('Web服务器获取教程文件，路径:', tutorialDir)
+      
+      // 检查目录是否存在
+      if (!await fs.pathExists(tutorialDir)) {
+        console.error('教程目录不存在:', tutorialDir)
+        return {
+          success: false,
+          files: [],
+          error: '教程目录不存在'
+        }
+      }
+      
       const files = await fs.readdir(tutorialDir)
       
       const tutorials = []
