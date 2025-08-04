@@ -8,10 +8,11 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs-extra');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const os = require('os');
+const multer = require('multer');
 
 class ArtiMeowWebServer {
     constructor() {
@@ -30,6 +31,14 @@ class ArtiMeowWebServer {
         this.secretKey = this.generateSecretKey();
         this.connectedClients = new Map();
         this.dataAccessor = null; // 数据访问接口
+        
+        // 配置multer用于文件上传
+        this.upload = multer({
+            storage: multer.memoryStorage(),
+            limits: {
+                fileSize: 100 * 1024 * 1024 // 100MB
+            }
+        });
         
         this.setupMiddleware();
         this.setupRoutes();
@@ -57,8 +66,20 @@ class ArtiMeowWebServer {
         this.getSettings = accessor.getSettings?.bind(accessor);
         this.saveSettings = accessor.saveSettings?.bind(accessor);
         this.getRecentProjects = accessor.getRecentProjects?.bind(accessor);
+        this.addRecentProject = accessor.addRecentProject?.bind(accessor);
         this.getTutorialFiles = accessor.getTutorialFiles?.bind(accessor);
         this.getSyncData = accessor.getSyncData?.bind(accessor);
+        
+        // 项目管理方法
+        this.createProject = accessor.createProject?.bind(accessor);
+        this.loadProject = accessor.loadProject?.bind(accessor);
+        this.saveProject = accessor.saveProject?.bind(accessor);
+        this.deleteProject = accessor.deleteProject?.bind(accessor);
+        this.importProject = accessor.importProject?.bind(accessor);
+        
+        // AI相关方法
+        this.testAIConnection = accessor.testAIConnection?.bind(accessor);
+        this.callAI = accessor.callAI?.bind(accessor);
     }
 
     /**
@@ -100,11 +121,13 @@ class ArtiMeowWebServer {
         const token = authHeader && authHeader.split(' ')[1];
 
         if (!token) {
+            console.log('API请求缺少token:', req.path, req.headers);
             return res.status(401).json({ error: '未提供访问令牌' });
         }
 
         jwt.verify(token, this.secretKey, (err, user) => {
             if (err) {
+                console.log('Token验证失败:', err.message, 'Token:', token.substring(0, 20) + '...');
                 return res.status(403).json({ error: '访问令牌无效' });
             }
             req.user = user;
@@ -116,6 +139,11 @@ class ArtiMeowWebServer {
      * 设置路由
      */
     setupRoutes() {
+        // 提供登录CSS文件
+        this.app.get('/login.css', (req, res) => {
+            res.sendFile(path.join(__dirname, 'login.css'));
+        });
+        
         // 主页面 - 使用与本地相同的HTML界面
         this.app.get('/', (req, res) => {
             res.send(this.generateWebInterface());
@@ -123,7 +151,8 @@ class ArtiMeowWebServer {
         
         // Favicon处理
         this.app.get('/favicon.ico', (req, res) => {
-            res.status(204).end();
+            const faviconPath = path.join(__dirname, '../renderer/assets/icons/icon.png');
+            res.sendFile(faviconPath);
         });
 
         // 状态检查
@@ -179,13 +208,14 @@ class ArtiMeowWebServer {
         this.app.get('/api/projects', async (req, res) => {
             try {
                 if (!this.dataAccessor || !this.getProjects) {
-                    return res.status(500).json({ error: '数据访问接口未初始化' });
+                    return res.status(500).json({ success: false, error: '数据访问接口未初始化' });
                 }
                 const projects = await this.getProjects();
-                res.json(projects);
+                // 确保返回统一格式
+                res.json({ success: true, projects: projects || [] });
             } catch (error) {
                 console.error('Get projects error:', error);
-                res.status(500).json({ error: '获取项目列表失败' });
+                res.status(500).json({ success: false, error: '获取项目列表失败' });
             }
         });
 
@@ -203,11 +233,23 @@ class ArtiMeowWebServer {
         // 获取章节内容
         this.app.get('/api/projects/:projectId/chapters/:chapterId', async (req, res) => {
             try {
+                console.log('获取章节请求:', {
+                    projectId: req.params.projectId,
+                    chapterId: req.params.chapterId,
+                    decodedProjectId: decodeURIComponent(req.params.projectId)
+                });
+                
+                if (!this.getChapterContent) {
+                    console.error('getChapterContent方法未绑定');
+                    return res.status(500).json({ error: 'getChapterContent方法未绑定' });
+                }
+                
                 const content = await this.getChapterContent(req.params.projectId, req.params.chapterId);
+                console.log('章节内容获取成功:', { chapterId: req.params.chapterId, hasContent: !!content });
                 res.json(content);
             } catch (error) {
                 console.error('Get chapter error:', error);
-                res.status(500).json({ error: '获取章节内容失败' });
+                res.status(500).json({ error: '获取章节内容失败', details: error.message });
             }
         });
 
@@ -254,6 +296,85 @@ class ArtiMeowWebServer {
                 res.status(500).json({ error: '获取最近项目失败' });
             }
         });
+
+        // 添加最近项目
+        this.app.post('/api/recent-projects', async (req, res) => {
+            try {
+                const { projectPath } = req.body;
+                await this.addRecentProject(projectPath);
+                res.json({ success: true });
+            } catch (error) {
+                console.error('Add recent project error:', error);
+                res.status(500).json({ error: '添加最近项目失败' });
+            }
+        });
+
+        // 创建项目
+        this.app.post('/api/projects', async (req, res) => {
+            try {
+                const result = await this.createProject(req.body);
+                res.json(result);
+            } catch (error) {
+                console.error('Create project error:', error);
+                res.status(500).json({ error: '创建项目失败', details: error.message });
+            }
+        });
+
+        // 加载项目
+        this.app.post('/api/projects/load', async (req, res) => {
+            try {
+                const { projectPath } = req.body;
+                const result = await this.loadProject(projectPath);
+                res.json(result);
+            } catch (error) {
+                console.error('Load project error:', error);
+                res.status(500).json({ error: '加载项目失败', details: error.message });
+            }
+        });
+
+        // 保存项目
+        this.app.post('/api/projects/save', async (req, res) => {
+            try {
+                const result = await this.saveProject(req.body);
+                res.json(result);
+            } catch (error) {
+                console.error('Save project error:', error);
+                res.status(500).json({ error: '保存项目失败', details: error.message });
+            }
+        });
+
+        // 导入项目
+        this.app.post('/api/projects/import', this.upload.single('projectZip'), async (req, res) => {
+            try {
+                if (!req.file) {
+                    return res.status(400).json({ error: '未上传文件' });
+                }
+                
+                const originalName = req.body.originalName || req.file.originalname.replace('.zip', '');
+                const result = await this.importProject(req.file.buffer, originalName);
+                
+                if (result.success) {
+                    res.json(result);
+                } else {
+                    res.status(400).json(result);
+                }
+            } catch (error) {
+                console.error('Import project error:', error);
+                res.status(500).json({ error: '导入项目失败', details: error.message });
+            }
+        });
+
+        // 删除项目
+        this.app.delete('/api/projects/delete', async (req, res) => {
+            try {
+                const { projectPath } = req.body;
+                const result = await this.deleteProject(projectPath);
+                res.json(result);
+            } catch (error) {
+                console.error('Delete project error:', error);
+                res.status(500).json({ error: '删除项目失败', details: error.message });
+            }
+        });
         
         // 教程文件
         this.app.get('/api/tutorial', async (req, res) => {
@@ -263,6 +384,208 @@ class ArtiMeowWebServer {
             } catch (error) {
                 console.error('Get tutorial files error:', error);
                 res.status(500).json({ error: '获取教程文件失败' });
+            }
+        });
+
+        // AI相关API
+        this.app.post('/api/ai/test', async (req, res) => {
+            try {
+                const { engine, settings } = req.body;
+                
+                if (this.testAIConnection) {
+                    const result = await this.testAIConnection(engine, settings);
+                    res.json(result);
+                } else {
+                    // 模拟AI连接测试
+                    if (!settings || !settings.apiKey) {
+                        return res.json({ success: false, error: 'API Key is required' });
+                    }
+                    
+                    res.json({ 
+                        success: true, 
+                        message: `${engine} 连接测试成功 (模拟)`,
+                        engine: engine,
+                        model: settings.model || 'default'
+                    });
+                }
+            } catch (error) {
+                console.error('AI connection test error:', error);
+                res.status(500).json({ success: false, error: 'AI连接测试失败', details: error.message });
+            }
+        });
+
+        this.app.post('/api/ai/call', async (req, res) => {
+            try {
+                const options = req.body;
+                
+                if (this.callAI) {
+                    const result = await this.callAI(options);
+                    res.json(result);
+                } else {
+                    // 模拟AI调用
+                    if (!options.messages || !options.messages.length) {
+                        return res.json({ success: false, error: '消息内容不能为空' });
+                    }
+                    
+                    res.json({ 
+                        success: true,
+                        content: '这是AI的模拟回复。在生产环境中，这里会调用真实的AI API。',
+                        usage: {
+                            prompt_tokens: 10,
+                            completion_tokens: 20,
+                            total_tokens: 30
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('AI call error:', error);
+                res.status(500).json({ success: false, error: 'AI调用失败', details: error.message });
+            }
+        });
+
+        // 文件操作API
+        this.app.post('/api/files/read', async (req, res) => {
+            try {
+                const { filePath } = req.body;
+                if (!filePath) {
+                    return res.status(400).json({ success: false, error: '文件路径不能为空' });
+                }
+                
+                const fullPath = path.resolve(filePath);
+                
+                // 安全检查：允许访问用户文档目录中的ArtiMeow项目
+                const userHome = os.homedir();
+                const documentsPath = path.join(userHome, 'Documents');
+                const allowedPaths = [
+                    path.resolve('./'),  // 当前工作目录
+                    documentsPath,       // 用户文档目录
+                    userHome             // 用户主目录
+                ];
+                
+                const isAllowed = allowedPaths.some(allowedPath => 
+                    fullPath.startsWith(allowedPath)
+                );
+                
+                if (!isAllowed) {
+                    console.log('文件访问被拒绝:', fullPath, '允许的路径:', allowedPaths);
+                    return res.status(403).json({ success: false, error: 'Access denied' });
+                }
+                
+                if (await fs.pathExists(fullPath)) {
+                    const content = await fs.readFile(fullPath, 'utf8');
+                    res.json({ success: true, content });
+                } else {
+                    res.status(404).json({ success: false, error: 'File not found' });
+                }
+            } catch (error) {
+                console.error('读取文件失败:', error);
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        this.app.post('/api/files/write', async (req, res) => {
+            try {
+                const { filePath, content } = req.body;
+                if (!filePath) {
+                    return res.status(400).json({ success: false, error: '文件路径不能为空' });
+                }
+                
+                const fullPath = path.resolve(filePath);
+                
+                // 安全检查：允许访问用户文档目录中的ArtiMeow项目
+                const userHome = os.homedir();
+                const documentsPath = path.join(userHome, 'Documents');
+                const allowedPaths = [
+                    path.resolve('./'),  // 当前工作目录
+                    documentsPath,       // 用户文档目录
+                    userHome             // 用户主目录
+                ];
+                
+                const isAllowed = allowedPaths.some(allowedPath => 
+                    fullPath.startsWith(allowedPath)
+                );
+                
+                if (!isAllowed) {
+                    console.log('文件写入被拒绝:', fullPath, '允许的路径:', allowedPaths);
+                    return res.status(403).json({ success: false, error: 'Access denied' });
+                }
+                
+                await fs.ensureDir(path.dirname(fullPath));
+                await fs.writeFile(fullPath, content || '', 'utf8');
+                res.json({ success: true });
+            } catch (error) {
+                console.error('写入文件失败:', error);
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        this.app.post('/api/files/create-directory', async (req, res) => {
+            try {
+                const { dirPath } = req.body;
+                if (!dirPath) {
+                    return res.status(400).json({ success: false, error: '目录路径不能为空' });
+                }
+                
+                const fullPath = path.resolve(dirPath);
+                
+                // 安全检查：允许访问用户文档目录中的ArtiMeow项目
+                const userHome = os.homedir();
+                const documentsPath = path.join(userHome, 'Documents');
+                const allowedPaths = [
+                    path.resolve('./'),  // 当前工作目录
+                    documentsPath,       // 用户文档目录
+                    userHome             // 用户主目录
+                ];
+                
+                const isAllowed = allowedPaths.some(allowedPath => 
+                    fullPath.startsWith(allowedPath)
+                );
+                
+                if (!isAllowed) {
+                    console.log('目录创建被拒绝:', fullPath, '允许的路径:', allowedPaths);
+                    return res.status(403).json({ success: false, error: 'Access denied' });
+                }
+                
+                await fs.ensureDir(fullPath);
+                res.json({ success: true });
+            } catch (error) {
+                console.error('创建目录失败:', error);
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        this.app.post('/api/files/exists', async (req, res) => {
+            try {
+                const { path: checkPath } = req.body;
+                if (!checkPath) {
+                    return res.status(400).json({ success: false, error: '路径不能为空' });
+                }
+                
+                const fullPath = path.resolve(checkPath);
+                
+                // 安全检查：允许访问用户文档目录中的ArtiMeow项目
+                const userHome = os.homedir();
+                const documentsPath = path.join(userHome, 'Documents');
+                const allowedPaths = [
+                    path.resolve('./'),  // 当前工作目录
+                    documentsPath,       // 用户文档目录
+                    userHome             // 用户主目录
+                ];
+                
+                const isAllowed = allowedPaths.some(allowedPath => 
+                    fullPath.startsWith(allowedPath)
+                );
+                
+                if (!isAllowed) {
+                    console.log('路径检查被拒绝:', fullPath, '允许的路径:', allowedPaths);
+                    return res.status(403).json({ success: false, error: 'Access denied' });
+                }
+                
+                const exists = await fs.pathExists(fullPath);
+                res.json({ success: true, exists });
+            } catch (error) {
+                console.error('检查路径失败:', error);
+                res.status(500).json({ success: false, error: error.message });
             }
         });
     }
@@ -312,6 +635,12 @@ class ArtiMeowWebServer {
                 '<title>ArtiMeow - 远程访问</title>'
             );
             
+            // 添加登录CSS链接和favicon到head中
+            htmlContent = htmlContent.replace(
+                '</head>',
+                '    <link rel="stylesheet" href="/login.css">\n    <link rel="icon" type="image/png" href="/assets/icons/icon.png">\n</head>'
+            );
+            
             // 添加Web模式专用样式
             const webStyles = `
     <style>
@@ -324,8 +653,70 @@ class ArtiMeowWebServer {
             overflow-x: hidden;
         }
         
-        /* 登录界面样式 */
-        .web-login-overlay {
+        /* Web模式标题栏 */
+        .web-titlebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            background: linear-gradient(135deg, #2d2d2d, #1e1e1e);
+            border-bottom: 1px solid #404040;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 1000;
+            font-size: 14px;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .web-titlebar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .web-titlebar-icon {
+            width: 16px;
+            height: 16px;
+            background-image: url('/assets/icons/icon.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        
+        .web-titlebar-title {
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .web-titlebar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #cccccc;
+        }
+        
+        .web-mode-badge {
+            background: linear-gradient(135deg, #4086ff, #3366cc);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* 调整主界面以适应标题栏 */
+        .app {
+            padding-top: 32px !important;
+        }
+        
+        /* 移除旧的登录样式，使用外部CSS */
             position: fixed;
             top: 0;
             left: 0;
@@ -684,25 +1075,44 @@ class ArtiMeowWebServer {
                 webStyles + '</head>'
             );
             
-            // 在body开始后添加登录界面和Web模式指示器
+            // 在body开始后添加Web标题栏、登录界面和Web模式指示器
             const webElements = `
-    <!-- Web模式指示器 -->
-    <div class="web-mode-indicator">
-        <i class="fas fa-globe"></i> 远程访问模式
+    
+    <!-- Web模式标题栏 -->
+    <div class="web-titlebar">
+        <div class="web-titlebar-left">
+            <div class="web-titlebar-icon"></div>
+            <span class="web-titlebar-title">ArtiMeow AI Writer</span>
+        </div>
+        <div class="web-titlebar-right">
+            <span class="web-mode-badge">Web模式</span>
+            <span>远程访问</span>
+        </div>
     </div>
     
     <!-- Web登录界面 -->
     <div id="web-login-overlay" class="web-login-overlay">
         <div class="web-login">
-            <h2><i class="fas fa-lock"></i> 身份验证</h2>
+            <h2>
+                <img src="/assets/icons/icon.png" alt="ArtiMeow" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 8px;">
+                ArtiMeow AI Writer
+            </h2>
+            <p class="subtitle">AI 集成小说写作应用 - 远程访问</p>
             <form id="web-login-form">
                 <div class="form-group">
-                    <label for="web-password">访问密码:</label>
-                    <input type="password" id="web-password" name="password" required>
+                    <label for="web-password">访问密码</label>
+                    <input type="password" id="web-password" name="password" required placeholder="请输入访问密码">
                 </div>
-                <button type="submit" class="btn">登录</button>
+                <button type="submit" class="btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    登录
+                </button>
                 <div id="web-login-error" class="error" style="display: none;"></div>
             </form>
+            <div class="brand">
+                <div class="brand-name">ArtiMeow</div>
+                <div class="brand-desc">让创作更智能</div>
+            </div>
         </div>
     </div>
     `;
@@ -723,191 +1133,11 @@ class ArtiMeowWebServer {
             document.body.classList.add('web-mode');
         });
         
-        // 只在真正的Web环境中定义electronAPI模拟
-        // 检查是否在Electron环境中（如果在Electron中，window.electronAPI已存在）
+        // 只在真正的Web环境中设置Web模式标识
+        // API适配器会处理具体的API调用
         if (!window.electronAPI) {
-            window.electronAPI = {
-                // 模拟electronAPI调用，转发到Web API
-                getSettings: () => fetch('/api/settings').then(r => {
-                if (!r.ok) {
-                    throw new Error('Failed to fetch settings');
-                }
-                return r.json();
-            }).catch(error => {
-                console.warn('Failed to load settings from server, using defaults:', error);
-                return {
-                    language: 'zh-CN',
-                    projectsDir: '',
-                    backupEnabled: true,
-                    backupInterval: 300000,
-                    ai: {
-                        engine: 'none',
-                        engines: {}
-                    },
-                    editor: {
-                        fontSize: 16,
-                        fontFamily: 'Georgia, serif',
-                        theme: 'dark',
-                        autoSave: true,
-                        autoSaveInterval: 30000
-                    },
-                    git: {
-                        enabled: false
-                    },
-                    general: {
-                        language: 'zh-CN'
-                    },
-                    network: {
-                        enabled: false,
-                        port: 3000,
-                        password: ''
-                    }
-                };
-            }),
-            updateSettings: (settings) => fetch('/api/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            }).then(r => {
-                if (!r.ok) {
-                    throw new Error('Failed to save settings');
-                }
-                return r.json();
-            }).catch(error => {
-                console.warn('Failed to save settings to server:', error);
-                return { success: false, error: error.message };
-            }),
-            getProjects: () => fetch('/api/projects').then(r => r.json()).catch(() => []),
-            createProject: (project) => fetch('/api/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(project)
-            }).then(r => r.json()).catch(() => ({ success: false })),
-            getProject: (id) => fetch(\`/api/projects/\${id}\`).then(r => r.json()).catch(() => null),
-            updateProject: (id, project) => fetch(\`/api/projects/\${id}\`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(project)
-            }).then(r => r.json()).catch(() => ({ success: false })),
-            deleteProject: (id) => fetch(\`/api/projects/\${id}\`, {
-                method: 'DELETE'
-            }).then(r => r.json()).catch(() => ({ success: false })),
-            getChapter: (projectId, chapterId) => fetch(\`/api/projects/\${projectId}/chapters/\${chapterId}\`).then(r => r.json()).catch(() => null),
-            updateChapter: (projectId, chapterId, chapter) => fetch(\`/api/projects/\${projectId}/chapters/\${chapterId}\`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(chapter)
-            }).then(r => r.json()).catch(() => ({ success: false })),
-            createChapter: (projectId, chapter) => fetch(\`/api/projects/\${projectId}/chapters\`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(chapter)
-            }).then(r => r.json()).catch(() => ({ success: false })),
-            deleteChapter: (projectId, chapterId) => fetch(\`/api/projects/\${projectId}/chapters/\${chapterId}\`, {
-                method: 'DELETE'
-            }).then(r => r.json()).catch(() => ({ success: false })),
-            
-            // 新增的方法模拟
-            getAppVersionInfo: () => Promise.resolve({
-                app: { name: 'ArtiMeow AI Writer', version: '1.1.0', description: 'AI 集成小说写作桌面应用' },
-                system: { platform: 'web', arch: 'web', node: 'N/A', electron: 'N/A' },
-                dependencies: {
-                    'marked': 'Web版本',
-                    'axios': 'Web版本',
-                    'highlight.js': 'Web版本',
-                    'electron-store': 'N/A',
-                    'archiver': 'N/A',
-                    'diff': 'Web版本',
-                    'extract-zip': 'N/A',
-                    'express': 'Web服务器',
-                    'socket.io': 'Web服务器',
-                    'bcrypt': 'Web服务器',
-                    'jsonwebtoken': 'Web服务器',
-                    'cors': 'Web服务器'
-                },
-                buildInfo: { isPackaged: false, resourcesPath: 'Web模式', execPath: 'Web浏览器' }
-            }),
-            getLocalIPs: () => Promise.resolve({
-                success: true,
-                ips: { ipv4: ['127.0.0.1'], ipv6: ['::1'] }
-            }),
-            getTutorialDirectory: () => Promise.resolve('/tutorial'),
-            
-            // Web服务器相关方法
-            startWebServer: (config) => Promise.resolve({
-                success: false,
-                error: 'Web模式下无法启动新的服务器实例'
-            }),
-            stopWebServer: () => Promise.resolve({
-                success: false,
-                error: 'Web模式下无法控制服务器'
-            }),
-            getWebServerStatus: () => Promise.resolve({
-                success: true,
-                status: { isRunning: true, port: location.port || 3000, connectedClients: 1 }
-            }),
-            
-            // Shell相关（Web模式下不可用）
-            shell: {
-                openExternal: (url) => {
-                    window.open(url, '_blank');
-                }
-            },
-            
-            // 项目相关方法
-            getRecentProjects: () => fetch('/api/recent-projects').then(r => r.json()).then(data => {
-                // 确保返回数组格式
-                if (data && data.projects && Array.isArray(data.projects)) {
-                    return data.projects;
-                } else if (Array.isArray(data)) {
-                    return data;
-                }
-                return [];
-            }).catch(() => []),
-            readTutorialFiles: () => fetch('/api/tutorial').then(r => r.json()).then(data => {
-                // 确保返回正确格式
-                if (data && data.files && Array.isArray(data.files)) {
-                    return { success: true, files: data.files };
-                } else if (Array.isArray(data)) {
-                    return { success: true, files: data };
-                }
-                return { success: false, files: [] };
-            }).catch(() => ({ success: false, files: [] })),
-            
-            // 文件和目录操作
-            chooseDirectory: () => Promise.resolve({ canceled: true }),
-            selectFile: () => Promise.resolve({ canceled: true }),
-            saveFile: () => Promise.resolve({ success: false, error: 'Web模式不支持文件保存' }),
-            
-            // AI相关
-            testAIConnection: () => Promise.resolve({ success: false, error: 'Web模式暂不支持AI连接测试' }),
-            sendAIRequest: () => Promise.resolve({ success: false, error: 'Web模式暂不支持AI请求' }),
-            
-            // Git相关
-            initGit: () => Promise.resolve({ success: false, error: 'Web模式暂不支持Git操作' }),
-            gitCommit: () => Promise.resolve({ success: false, error: 'Web模式暂不支持Git操作' }),
-            gitPush: () => Promise.resolve({ success: false, error: 'Web模式暂不支持Git操作' }),
-            gitPull: () => Promise.resolve({ success: false, error: 'Web模式暂不支持Git操作' }),
-            getGitStatus: () => Promise.resolve({ success: false, error: 'Web模式暂不支持Git操作' }),
-            
-            // 其他工具方法
-            showMessageBox: (options) => {
-                return Promise.resolve({
-                    response: 0,
-                    checkboxChecked: false
-                });
-            },
-            showSaveDialog: () => Promise.resolve({ canceled: true }),
-            showOpenDialog: () => Promise.resolve({ canceled: true }),
-            
-            // 应用相关
-            getAppPath: () => Promise.resolve('/web-app'),
-            getUserDataPath: () => Promise.resolve('/web-userdata'),
-            restartApp: () => Promise.resolve({ success: false, error: 'Web模式无法重启应用' })
-        };
-        }
-        
-        // 强制修复复选框显示问题 - 仅在Web模式下执行
+            console.log('Web模式：使用API适配器处理API调用');
+        }        // 强制修复复选框显示问题 - 仅在Web模式下执行
         function forceFixCheckboxes() {
             // 确保只在Web模式下执行
             if (!window.isWebMode) return;
@@ -992,11 +1222,48 @@ class ArtiMeowWebServer {
         // Web模式登录处理
         document.addEventListener('DOMContentLoaded', function() {
             const loginForm = document.getElementById('web-login-form');
+            const loginOverlay = document.getElementById('web-login-overlay');
+            const errorDiv = document.getElementById('web-login-error');
+            
+            // 检查是否已经登录
+            const token = localStorage.getItem('artimeow_token');
+            if (token) {
+                // 验证token是否有效
+                fetch('/api/settings', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // Token有效，隐藏登录界面
+                        loginOverlay.style.display = 'none';
+                        // 不在这里显示错误信息
+                    } else {
+                        // Token无效，清除并显示登录界面
+                        localStorage.removeItem('artimeow_token');
+                        loginOverlay.style.display = 'flex';
+                    }
+                })
+                .catch(() => {
+                    // 网络错误，清除token
+                    localStorage.removeItem('artimeow_token');
+                    loginOverlay.style.display = 'flex';
+                });
+            } else {
+                // 没有token，显示登录界面
+                loginOverlay.style.display = 'flex';
+            }
+            
             if (loginForm) {
                 loginForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const password = document.getElementById('web-password').value;
-                    const errorDiv = document.getElementById('web-login-error');
+                    const submitBtn = loginForm.querySelector('.btn');
+                    
+                    // 禁用提交按钮，显示加载状态
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
                     
                     try {
                         const response = await fetch('/api/login', {
@@ -1012,71 +1279,33 @@ class ArtiMeowWebServer {
                         if (result.success) {
                             // 保存token
                             localStorage.setItem('artimeow_token', result.token);
-                            // 隐藏登录界面
-                            document.getElementById('web-login-overlay').style.display = 'none';
                             
-                            // 延迟初始化应用，确保页面完全加载
+                            // 显示成功状态
+                            submitBtn.innerHTML = '<i class="fas fa-check"></i> 登录成功';
+                            submitBtn.style.background = 'linear-gradient(135deg, #00c851, #007e33)';
+                            
+                            // 延迟1秒后刷新页面
                             setTimeout(() => {
-                                // 初始化应用
-                                if (window.appManager) {
-                                    window.appManager.init();
-                                } else if (window.ArtiMeowApp) {
-                                    // 如果appManager不存在，尝试创建应用实例
-                                    try {
-                                        new window.ArtiMeowApp();
-                                    } catch (e) {
-                                        console.warn('Failed to initialize ArtiMeowApp:', e);
-                                    }
-                                }
-                            }, 100);
+                                window.location.reload();
+                            }, 1000);
                         } else {
-                            errorDiv.textContent = result.error || '登录失败';
-                            errorDiv.style.display = 'block';
+                            throw new Error(result.error || '登录失败');
                         }
                     } catch (error) {
-                        errorDiv.textContent = '连接失败，请检查网络';
+                        // 显示错误信息
+                        errorDiv.textContent = error.message || '连接失败，请检查网络';
                         errorDiv.style.display = 'block';
-                    }
-                });
-            }
-            
-            // 检查是否已经登录
-            const token = localStorage.getItem('artimeow_token');
-            if (token) {
-                // 验证token是否有效 - 不发送到需要认证的端点
-                fetch('/api/status')
-                .then(response => {
-                    if (response.ok) {
-                        // 尝试调用需要认证的API来验证token
-                        return fetch('/api/settings', {
-                            headers: {
-                                'Authorization': 'Bearer ' + token
-                            }
-                        });
-                    }
-                    return Promise.reject(new Error('Status check failed'));
-                })
-                .then(response => {
-                    if (response.ok) {
-                        document.getElementById('web-login-overlay').style.display = 'none';
-                        // 延迟初始化应用，确保token验证完成
+                        
+                        // 恢复提交按钮
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+                        submitBtn.style.background = '';
+                        
+                        // 5秒后自动隐藏错误信息
                         setTimeout(() => {
-                            if (window.appManager) {
-                                window.appManager.init();
-                            } else if (window.ArtiMeowApp) {
-                                try {
-                                    new window.ArtiMeowApp();
-                                } catch (e) {
-                                    console.warn('Failed to initialize ArtiMeowApp:', e);
-                                }
-                            }
-                        }, 100);
-                    } else {
-                        localStorage.removeItem('artimeow_token');
+                            errorDiv.style.display = 'none';
+                        }, 5000);
                     }
-                })
-                .catch(() => {
-                    localStorage.removeItem('artimeow_token');
                 });
             }
         });
@@ -1086,24 +1315,126 @@ class ArtiMeowWebServer {
             const originalFetch = window.fetch;
             window.fetch = function(url, options = {}) {
                 const token = localStorage.getItem('artimeow_token');
+                const isLoggedIn = !!token;
+                
                 if (token && url.startsWith('/api/') && url !== '/api/login' && url !== '/api/status') {
                     options.headers = options.headers || {};
                     options.headers['Authorization'] = 'Bearer ' + token;
                 }
+                
                 return originalFetch(url, options).then(response => {
                     // 如果token过期，清除token但不重新加载页面，而是显示登录界面
                     if ((response.status === 403 || response.status === 401) && 
                         url !== '/api/login' && url !== '/api/status') {
-                        localStorage.removeItem('artimeow_token');
-                        // 显示登录界面而不是重新加载页面
-                        const loginOverlay = document.getElementById('web-login-overlay');
-                        if (loginOverlay) {
-                            loginOverlay.style.display = 'flex';
+                        
+                        // 如果用户已登录但token失效，才清除token并显示登录界面
+                        if (isLoggedIn) {
+                            localStorage.removeItem('artimeow_token');
+                            const loginOverlay = document.getElementById('web-login-overlay');
+                            if (loginOverlay) {
+                                loginOverlay.style.display = 'flex';
+                            }
+                        }
+                        
+                        // 对于未登录状态下的401/403错误，静默处理，不抛出异常
+                        if (!isLoggedIn) {
+                            // 创建一个包装的response，标记为认证错误但不会触发错误显示
+                            const wrappedResponse = new Proxy(response, {
+                                get(target, prop) {
+                                    if (prop === 'isAuthError') {
+                                        return true;
+                                    }
+                                    return target[prop];
+                                }
+                            });
+                            return wrappedResponse;
                         }
                     }
                     return response;
+                }).catch(error => {
+                    // 对于网络错误，如果用户未登录，也要静默处理
+                    if (!isLoggedIn && (url.startsWith('/api/') && url !== '/api/login' && url !== '/api/status')) {
+                        // 返回一个模拟的失败响应，但标记为认证错误
+                        return Promise.resolve({
+                            ok: false,
+                            status: 401,
+                            statusText: 'Unauthorized',
+                            isAuthError: true,
+                            json: () => Promise.resolve({ error: 'Not authenticated' }),
+                            text: () => Promise.resolve('Not authenticated')
+                        });
+                    }
+                    throw error;
                 });
             };
+            
+            // 覆盖全局错误处理，过滤认证错误
+            const originalShowError = window.ArtiMeowApp?.prototype?.showError;
+            if (originalShowError) {
+                window.ArtiMeowApp.prototype.showError = function(message) {
+                    const token = localStorage.getItem('artimeow_token');
+                    const isLoggedIn = !!token;
+                    
+                    // 如果用户未登录，且错误消息包含认证相关关键词，则不显示
+                    if (!isLoggedIn) {
+                        const authErrorPatterns = [
+                            '401', '403', 'unauthorized', 'forbidden', 
+                            'token', 'authentication', '身份验证', '访问令牌',
+                            'Not authenticated', 'Access denied', '操作失败，请重试'
+                        ];
+                        
+                        const messageStr = String(message).toLowerCase();
+                        const isAuthError = authErrorPatterns.some(pattern => 
+                            messageStr.includes(pattern.toLowerCase())
+                        );
+                        
+                        if (isAuthError) {
+                            console.log('Web模式：过滤认证错误，用户未登录:', message);
+                            return;
+                        }
+                    }
+                    
+                    // 调用原始的showError方法
+                    originalShowError.call(this, message);
+                };
+            }
+            
+            // 在DOMContentLoaded时也设置错误过滤
+            document.addEventListener('DOMContentLoaded', function() {
+                // 查找并覆盖app实例的showError方法
+                setTimeout(() => {
+                    if (window.app && typeof window.app.showError === 'function') {
+                        const originalShowError = window.app.showError.bind(window.app);
+                        window.app.showError = function(message) {
+                            const token = localStorage.getItem('artimeow_token');
+                            const isLoggedIn = !!token;
+                            
+                            // 如果用户未登录，且错误消息包含认证相关关键词，则不显示
+                            if (!isLoggedIn) {
+                                const authErrorPatterns = [
+                                    '401', '403', 'unauthorized', 'forbidden', 
+                                    'token', 'authentication', '身份验证', '访问令牌',
+                                    'not authenticated', 'access denied', '连接失败',
+                                    'failed to fetch', 'network error', '操作失败，请重试'
+                                ];
+                                
+                                const messageStr = String(message).toLowerCase();
+                                const isAuthError = authErrorPatterns.some(pattern => 
+                                    messageStr.includes(pattern.toLowerCase())
+                                );
+                                
+                                if (isAuthError) {
+                                    console.log('Web模式：过滤认证错误，用户未登录:', message);
+                                    return;
+                                }
+                            }
+                            
+                            // 调用原始的showError方法
+                            originalShowError(message);
+                        };
+                    }
+                }, 1000);
+            });
         }
     </script>
     `;

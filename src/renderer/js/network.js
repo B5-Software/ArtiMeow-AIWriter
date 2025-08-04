@@ -320,7 +320,6 @@ class NetworkManager {
                 <div class="server-status running">
                     <h4>✅ 服务器运行中</h4>
                     <p><strong>端口:</strong> ${this.serverInfo.port}</p>
-                    <p><strong>连接的客户端:</strong> ${this.serverInfo.connectedClients || 0}</p>
                     
                     <div class="access-urls">
                         <h5>访问地址:</h5>
@@ -393,7 +392,8 @@ class NetworkManager {
             return;
         }
 
-        const ips = await this.getLocalIPs();
+        const result = await window.electronAPI.getLocalIPs();
+        const ips = result.success ? result.ips : { ipv4: ['127.0.0.1'], ipv6: [] };
         const mainUrl = ips.ipv4.length > 0 
             ? `http://${ips.ipv4[0]}:${this.serverInfo.port}`
             : `http://localhost:${this.serverInfo.port}`;

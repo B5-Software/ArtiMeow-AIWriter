@@ -38,9 +38,14 @@
             <div class="sidebar">
                 <div class="sidebar-header">
                     <h3>项目管理</h3>
-                    <button id="new-project-btn" class="btn-primary">
-                        <i class="fas fa-plus"></i> 新建项目
-                    </button>
+                    <div class="project-actions">
+                        <button id="new-project-btn" class="btn-primary">
+                            <i class="fas fa-plus"></i> 新建项目
+                        </button>
+                        <button id="import-project-btn" class="btn-secondary" title="导入项目">
+                            <i class="fas fa-file-import"></i> 导入
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="sidebar-section">
@@ -1221,6 +1226,9 @@
 
     <!-- 加载所有 JavaScript 文件 -->
     <script src="../../node_modules/marked/lib/marked.umd.js"></script>
+    
+    <!-- API适配器 - 必须在所有其他脚本之前加载 -->
+    <script src="js/api-adapter.js"></script>
     
     <!-- Git 教程浮窗 -->
     <div id="git-tutorial-popup" class="git-tutorial-popup">

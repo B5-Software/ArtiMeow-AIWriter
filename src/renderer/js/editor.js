@@ -852,6 +852,21 @@ class EditorManager {
       }
     });
   }
+
+  /**
+   * 清空编辑器内容
+   */
+  clear() {
+    if (this.editor) {
+      this.editor.value = '';
+      this.undoStack = [];
+      this.redoStack = [];
+      
+      // 触发 input 事件以更新字数统计等
+      const event = new Event('input', { bubbles: true });
+      this.editor.dispatchEvent(event);
+    }
+  }
 }
 
 // 初始化编辑器管理器

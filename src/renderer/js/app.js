@@ -39,10 +39,10 @@ class ArtiMeowApp {
       // 更新加载状态
       this.updateLoadingStatus('正在初始化应用...', 0);
       
-      // 检查 Electron API
-      if (!window.electronAPI) {
-        console.error('Electron API 不可用');
-        this.showError('应用启动失败：缺少必要的系统组件');
+      // 检查 API适配器
+      if (!window.apiAdapter) {
+        console.error('API适配器不可用');
+        this.showError('应用启动失败：缺少API适配器');
         return;
       }
       
@@ -117,7 +117,7 @@ class ArtiMeowApp {
    */
   async updateLoadingVersionInfo() {
     try {
-      const versionInfo = await window.electronAPI.getAppVersionInfo();
+      const versionInfo = await window.apiAdapter.getAppVersionInfo();
       const versionElement = document.getElementById('loading-version-info');
       
       if (versionElement && versionInfo && versionInfo.app) {
@@ -132,7 +132,7 @@ class ArtiMeowApp {
 
   async loadSettings() {
     try {
-      this.settings = await window.electronAPI.getSettings();
+      this.settings = await window.apiAdapter.getSettings();
       console.log('设置已加载:', this.settings);
     } catch (error) {
       console.error('加载设置失败:', error);
@@ -181,7 +181,11 @@ class ArtiMeowApp {
     if (minimizeBtn) {
       minimizeBtn.addEventListener('click', async () => {
         try {
-          await window.electronAPI.windowMinimize();
+          if (window.apiAdapter.isWebMode) {
+            // Web模式下无法控制窗口
+            return;
+          }
+          await window.apiAdapter.windowMinimize();
         } catch (error) {
           console.error('最小化窗口失败:', error);
         }
@@ -191,7 +195,11 @@ class ArtiMeowApp {
     if (maximizeBtn) {
       maximizeBtn.addEventListener('click', async () => {
         try {
-          await window.electronAPI.windowMaximize();
+          if (window.apiAdapter.isWebMode) {
+            // Web模式下无法控制窗口
+            return;
+          }
+          await window.apiAdapter.windowMaximize();
         } catch (error) {
           console.error('最大化窗口失败:', error);
         }
@@ -201,7 +209,12 @@ class ArtiMeowApp {
     if (closeBtn) {
       closeBtn.addEventListener('click', async () => {
         try {
-          await window.electronAPI.windowClose();
+          if (window.apiAdapter.isWebMode) {
+            // Web模式下关闭标签页
+            window.close();
+            return;
+          }
+          await window.apiAdapter.windowClose();
         } catch (error) {
           console.error('关闭窗口失败:', error);
         }
@@ -215,6 +228,14 @@ class ArtiMeowApp {
     if (newProjectBtn) {
       newProjectBtn.addEventListener('click', () => {
         this.showModal('new-project-modal');
+      });
+    }
+
+    // 导入项目按钮
+    const importProjectBtn = document.getElementById('import-project-btn');
+    if (importProjectBtn) {
+      importProjectBtn.addEventListener('click', () => {
+        this.handleImportProject();
       });
     }
 
@@ -627,10 +648,20 @@ class ArtiMeowApp {
 
   async loadRecentProjects() {
     try {
-      const recentProjects = await window.electronAPI.getRecentProjects();
-      this.renderRecentProjects(recentProjects);
+      // 使用API适配器统一处理Electron和Web模式
+      const response = await window.apiAdapter.getProjects();
+      if (response && response.success && response.projects) {
+        this.renderRecentProjects(response.projects);
+      } else if (response && response.projects) {
+        // 兼容旧格式
+        this.renderRecentProjects(response.projects);
+      } else {
+        console.warn('获取项目列表失败:', response ? response.error : '无响应');
+        this.renderRecentProjects([]);
+      }
     } catch (error) {
-      console.error('加载最近项目失败:', error);
+      console.error('加载项目列表失败:', error);
+      this.renderRecentProjects([]);
     }
   }
 
@@ -640,8 +671,8 @@ class ArtiMeowApp {
 
     container.innerHTML = '';
 
-    if (projects.length === 0) {
-      container.innerHTML = '<p class="text-muted">暂无最近项目</p>';
+    if (!projects || projects.length === 0) {
+      container.innerHTML = '<p class="text-muted">暂无项目</p>';
       return;
     }
 
@@ -649,9 +680,13 @@ class ArtiMeowApp {
       const projectElement = document.createElement('div');
       projectElement.className = 'project-item hover-lift';
       projectElement.dataset.path = project.path; // 添加数据属性
+      
+      // 适配新的数据格式
+      const title = project.metadata ? project.metadata.title : (project.name || project.title);
+      
       projectElement.innerHTML = `
         <div class="project-details">
-          <div class="project-name">${project.name}</div>
+          <div class="project-name">${title}</div>
           <div class="project-path">${project.path}</div>
         </div>
       `;
@@ -676,7 +711,7 @@ class ArtiMeowApp {
 
     try {
       this.updateStatus('正在创建项目...');
-      const result = await window.electronAPI.createProject(projectData);
+      const result = await window.apiAdapter.createProject(projectData);
       
       if (result.success) {
         this.closeModal('new-project-modal');
@@ -684,7 +719,7 @@ class ArtiMeowApp {
         this.showSuccess('项目创建成功！');
         
         // 更新最近项目列表
-        await window.electronAPI.addRecentProject(result.projectDir);
+        await window.apiAdapter.addRecentProject(result.projectDir);
         await this.loadRecentProjects();
       } else {
         this.showError('项目创建失败: ' + result.error);
@@ -697,10 +732,86 @@ class ArtiMeowApp {
     }
   }
 
+  async handleImportProject() {
+    try {
+      this.updateStatus('正在导入项目...');
+      
+      if (window.apiAdapter && window.apiAdapter.isWebMode) {
+        // Web模式 - 使用文件输入
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.zip';
+        input.style.display = 'none';
+        
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) {
+            this.updateStatus('就绪');
+            return;
+          }
+          
+          if (!file.name.toLowerCase().endsWith('.zip')) {
+            this.showError('请选择zip格式的项目文件');
+            this.updateStatus('就绪');
+            return;
+          }
+          
+          try {
+            const result = await window.apiAdapter.importProject(file);
+            
+            if (result.success) {
+              this.showSuccess(`项目 "${result.projectName}" 导入成功！`);
+              // 刷新项目列表
+              await this.loadRecentProjects();
+              // 自动加载导入的项目
+              await this.loadProject(result.projectPath);
+            } else {
+              this.showError('导入失败: ' + (result.error || '未知错误'));
+            }
+          } catch (error) {
+            console.error('导入项目时出错:', error);
+            this.showError('导入项目失败: ' + error.message);
+          } finally {
+            this.updateStatus('就绪');
+            document.body.removeChild(input);
+          }
+        };
+        
+        document.body.appendChild(input);
+        input.click();
+        
+      } else {
+        // Electron模式 - 使用本地对话框
+        const result = await window.apiAdapter.importProject();
+        
+        if (result.canceled) {
+          this.updateStatus('就绪');
+          return;
+        }
+        
+        if (result.success) {
+          this.showSuccess(`项目 "${result.projectName}" 导入成功！`);
+          // 刷新项目列表
+          await this.loadRecentProjects();
+          // 自动加载导入的项目
+          await this.loadProject(result.projectPath);
+        } else {
+          this.showError('导入失败: ' + (result.error || result.details || '未知错误'));
+        }
+      }
+      
+    } catch (error) {
+      console.error('导入项目时出错:', error);
+      this.showError('导入项目失败，请重试');
+    } finally {
+      this.updateStatus('就绪');
+    }
+  }
+
   async loadProject(projectPath) {
     try {
       this.updateStatus('正在加载项目...');
-      const result = await window.electronAPI.loadProject(projectPath);
+      const result = await window.apiAdapter.loadProject(projectPath);
       
       if (result.success) {
         this.currentProject = result.project;
@@ -720,7 +831,7 @@ class ArtiMeowApp {
         this.updateGitStatus();
         
         // 添加到最近项目
-        await window.electronAPI.addRecentProject(projectPath);
+        await window.apiAdapter.addRecentProject(projectPath);
         await this.loadRecentProjects();
       } else {
         this.showError('项目加载失败: ' + result.error);
@@ -866,7 +977,7 @@ class ArtiMeowApp {
       }
       
       // 从文件系统加载章节内容
-      const result = await window.electronAPI.loadChapter({
+      const result = await window.apiAdapter.loadChapter({
         projectPath: this.currentProject.path,
         chapterId: chapter.id
       });
@@ -959,7 +1070,7 @@ class ArtiMeowApp {
       });
       
       // 保存章节到文件系统
-      const result = await window.electronAPI.saveChapter({
+      const result = await window.apiAdapter.saveChapter({
         projectPath: this.currentProject.path,
         chapterId: this.currentChapter.id,
         title: this.currentChapter.title,
@@ -1341,15 +1452,22 @@ class ArtiMeowApp {
     }
   }
 
-  async openProject() {
+  async openProject(projectPath = null) {
     try {
-      const result = await window.electronAPI.showOpenDialog({
-        properties: ['openDirectory'],
-        title: '选择项目文件夹'
-      });
+      if (projectPath) {
+        // 直接打开指定路径的项目
+        console.log('尝试打开项目:', projectPath);
+        await this.loadProject(projectPath);
+      } else {
+        // 显示对话框选择项目
+        const result = await window.apiAdapter.showOpenDialog({
+          properties: ['openDirectory'],
+          title: '选择项目文件夹'
+        });
 
-      if (!result.canceled && result.filePaths.length > 0) {
-        await this.loadProject(result.filePaths[0]);
+        if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+          await this.loadProject(result.filePaths[0]);
+        }
       }
     } catch (error) {
       console.error('打开项目失败:', error);
@@ -2087,6 +2205,74 @@ class ArtiMeowApp {
   }
 
   /**
+   * 清理当前项目状态
+   */
+  clearCurrentProject() {
+    console.log('清理当前项目状态');
+    
+    // 清空当前项目信息
+    this.currentProject = null;
+    this.currentChapter = null;
+    this.cachedProjectPath = null;
+    
+    // 清空编辑器
+    if (window.editorManager && window.editorManager.clear) {
+      window.editorManager.clear();
+    }
+    
+    // 清空项目信息显示
+    const projectNameElement = document.getElementById('current-project-name');
+    if (projectNameElement) {
+      projectNameElement.textContent = '未选择项目';
+    }
+    
+    const projectInfoElement = document.getElementById('current-project-info');
+    if (projectInfoElement) {
+      projectInfoElement.innerHTML = '<p class="text-muted">请选择或创建一个项目</p>';
+    }
+    
+    // 清空章节列表
+    const chaptersList = document.getElementById('chapters-list');
+    if (chaptersList) {
+      chaptersList.innerHTML = '<p class="text-muted">暂无章节</p>';
+    }
+    
+    // 禁用添加章节按钮
+    const addChapterBtn = document.getElementById('add-chapter-btn');
+    if (addChapterBtn) {
+      addChapterBtn.disabled = true;
+    }
+    
+    // 更新状态
+    this.updateStatus('就绪');
+    this.markSaved();
+    
+    // 清空字数统计
+    this.currentWordCount = 0;
+    const wordCountElement = document.getElementById('word-count');
+    if (wordCountElement) {
+      wordCountElement.textContent = '0';
+    }
+  }
+
+  /**
+   * 处理项目删除后的清理工作
+   */
+  async handleProjectDeleted(projectPath) {
+    console.log('处理项目删除:', projectPath);
+    
+    // 如果删除的是当前项目，清理状态
+    if (this.currentProject && this.currentProject.path === projectPath) {
+      this.clearCurrentProject();
+    }
+    
+    // 刷新项目列表
+    await this.loadRecentProjects();
+    
+    this.showSuccess('项目删除成功');
+  }
+
+  /**
    * 处理章节右键菜单动作
    */
   async handleChapterContextAction(action, target) {
@@ -2119,19 +2305,10 @@ class ArtiMeowApp {
     }
 
     try {
-      const result = await window.electronAPI.deleteProject(projectPath);
+      const result = await window.apiAdapter.deleteProject(projectPath);
       if (result.success) {
-        this.showSuccess('项目删除成功');
-        
-        // 如果删除的是当前项目，清除当前项目状态
-        if (this.currentProject && this.currentProject.path === projectPath) {
-          this.currentProject = null;
-          this.currentChapter = null;
-          this.cachedProjectPath = null;
-          this.updateProjectUI();
-        }
-        
-        await this.loadRecentProjects();
+        // 调用新的清理方法
+        await this.handleProjectDeleted(projectPath);
       } else {
         this.showError('删除项目失败: ' + result.error);
       }
@@ -2229,8 +2406,10 @@ class ArtiMeowApp {
    */
   async exportProject(projectPath) {
     try {
+      console.log('开始导出项目:', projectPath);
+      
       // 加载项目
-      const result = await window.electronAPI.loadProject(projectPath);
+      const result = await window.apiAdapter.loadProject(projectPath);
       if (!result.success) {
         this.showError('无法加载项目: ' + result.error);
         return;
@@ -2241,6 +2420,8 @@ class ArtiMeowApp {
         this.showError('项目中没有章节可导出');
         return;
       }
+
+      console.log('项目加载成功, 章节数:', project.chapters.length);
 
       // 收集所有章节内容
       let exportContent = `${project.name}\n`;
@@ -2260,12 +2441,12 @@ class ArtiMeowApp {
 
         try {
           // 从文件系统加载章节内容
-          const chapterResult = await window.electronAPI.loadChapter({
+          const chapterResult = await window.apiAdapter.loadChapter({
             projectPath: projectPath,
             chapterId: chapter.id
           });
 
-          if (chapterResult.success && chapterResult.chapter.content) {
+          if (chapterResult && chapterResult.success && chapterResult.chapter && chapterResult.chapter.content) {
             exportContent += chapterResult.chapter.content;
           } else {
             // 如果文件不存在，使用项目中保存的内容
@@ -2305,7 +2486,7 @@ class ArtiMeowApp {
    */
   async exportSettings() {
     try {
-      const result = await window.electronAPI.showSaveDialog({
+      const result = await window.apiAdapter.showSaveDialog({
         title: '导出设置',
         defaultPath: `artimeow-settings-${new Date().toISOString().split('T')[0]}.json`,
         filters: [
@@ -2314,7 +2495,7 @@ class ArtiMeowApp {
       });
 
       if (!result.canceled && result.filePath) {
-        await window.electronAPI.exportSettings(result.filePath);
+        await window.apiAdapter.exportSettings(result.filePath);
         this.showSuccess('设置导出成功');
       }
     } catch (error) {
@@ -2328,7 +2509,7 @@ class ArtiMeowApp {
    */
   async importSettings() {
     try {
-      const result = await window.electronAPI.showOpenDialog({
+      const result = await window.apiAdapter.showOpenDialog({
         title: '导入设置',
         filters: [
           { name: 'JSON 文件', extensions: ['json'] }
@@ -2336,8 +2517,8 @@ class ArtiMeowApp {
         properties: ['openFile']
       });
 
-      if (!result.canceled && result.filePaths.length > 0) {
-        await window.electronAPI.importSettings(result.filePaths[0]);
+      if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+        await window.apiAdapter.importSettings(result.filePaths[0]);
         this.showSuccess('设置导入成功');
         // 重新加载设置
         await this.loadSettings();
@@ -3106,27 +3287,23 @@ class ArtiMeowApp {
       // 检查是否是链接元素
       const link = e.target.closest('a');
       if (link && link.href) {
-        e.preventDefault(); // 阻止默认跳转行为
-        
         const url = link.href;
         console.log('拦截链接点击:', url);
+        
+        // 不拦截 blob: 和 data: 链接（用于文件下载）
+        if (url.startsWith('blob:') || url.startsWith('data:')) {
+          console.log('允许下载链接:', url);
+          return; // 让浏览器处理下载
+        }
+        
+        e.preventDefault(); // 阻止默认跳转行为
         
         // 检查是否是外部链接
         if (url.startsWith('http://') || url.startsWith('https://')) {
           console.log('在外部浏览器中打开链接:', url);
-          // 使用 Electron 的 shell 打开外部浏览器
-          if (window.electronAPI && window.electronAPI.openExternal) {
-            window.electronAPI.openExternal(url).then(result => {
-              if (!result.success) {
-                console.error('Failed to open external link:', result.error);
-                // 备用方案
-                window.open(url, '_blank');
-              }
-            }).catch(error => {
-              console.error('Error opening external link:', error);
-              // 备用方案
-              window.open(url, '_blank');
-            });
+          // 使用 API 适配器打开外部链接
+          if (window.apiAdapter && window.apiAdapter.openExternal) {
+            window.apiAdapter.openExternal(url);
           } else {
             // 备用方案
             window.open(url, '_blank');
@@ -3134,10 +3311,8 @@ class ArtiMeowApp {
         } else if (url.startsWith('file://') || url.includes('/') || url.includes('\\')) {
           // 对于本地文件链接，也在外部打开
           console.log('在外部程序中打开文件链接:', url);
-          if (window.electronAPI && window.electronAPI.openExternal) {
-            window.electronAPI.openExternal(url).catch(error => {
-              console.error('Error opening file link:', error);
-            });
+          if (window.apiAdapter && window.apiAdapter.openExternal) {
+            window.apiAdapter.openExternal(url);
           }
         } else {
           console.log('忽略非外部链接:', url);

@@ -1,8 +1,9 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron')
 const path = require('path')
-const fs = require('fs').promises
+const fs = require('fs-extra')
 const fsSync = require('fs')
 const { exec, spawn } = require('child_process')
+const { promisify } = require('util')
 const Store = require('electron-store')
 const axios = require('axios')
 const archiver = require('archiver')
@@ -13,6 +14,7 @@ const os = require('os')
 const ArtiMeowWebServer = require('./webserver/server')
 
 const store = new Store.default ? new Store.default() : new Store()
+const execAsync = promisify(exec)
 let aiProcess = null
 let mainWindow = null
 let splashWindow = null
@@ -394,7 +396,7 @@ ipcMain.handle('open-terminal', async (event, command = '', workingDirectory = '
   }
 })
 
-// 项目管理
+// 项目管理 - 新的基于目录扫描的方式
 ipcMain.handle('get-project-list', async () => {
   try {
     const settings = store.get('settings', defaultSettings)
@@ -413,43 +415,209 @@ ipcMain.handle('get-project-list', async () => {
         const projectFilePath = path.join(projectPath, 'project.json')
         
         try {
+          // 检查项目配置文件是否存在
+          await fs.access(projectFilePath)
+          
+          // 读取项目元数据
           const projectData = JSON.parse(await fs.readFile(projectFilePath, 'utf-8'))
+          const stats = await fs.stat(projectFilePath)
+          
+          // 计算字数（如果有章节的话）
+          let wordCount = 0
+          const chaptersDir = path.join(projectPath, 'chapters')
+          try {
+            const chapterFiles = await fs.readdir(chaptersDir)
+            for (const chapterFile of chapterFiles) {
+              if (chapterFile.endsWith('.md')) {
+                const chapterPath = path.join(chaptersDir, chapterFile)
+                const content = await fs.readFile(chapterPath, 'utf-8')
+                wordCount += content.length // 简单字符计数，可以后续优化为更准确的字数统计
+              }
+            }
+          } catch (error) {
+            // 章节目录不存在或无法读取，wordCount保持为0
+          }
+          
           const projectInfo = {
+            id: entry.name,
             path: projectPath,
             metadata: {
-              title: projectData.name,
+              title: projectData.name || entry.name,
               description: projectData.description || '',
               author: projectData.author || '',
               genre: projectData.genre || '',
-              created: projectData.createdAt,
-              lastModified: projectData.updatedAt,
-              wordCount: projectData.chapters ? 
-                projectData.chapters.reduce((sum, ch) => sum + (ch.wordCount || 0), 0) : 0
+              created: projectData.createTime || stats.birthtime.getTime(),
+              lastModified: projectData.updateTime || stats.mtime.getTime(),
+              wordCount: wordCount,
+              useGit: projectData.useGit || false,
+              version: projectData.version || '1.0.0'
             }
           }
-          console.log('添加项目到列表:', {
-            name: projectData.name,
-            path: projectPath,
-            pathType: typeof projectPath,
-            pathLength: projectPath ? projectPath.length : 0
-          })
+          
           projects.push(projectInfo)
         } catch (error) {
-          console.warn(`无法读取项目 ${entry.name}:`, error.message)
+          console.warn(`跳过无效项目目录 ${entry.name}:`, error.message)
         }
       }
     }
     
-    console.log('最终返回的项目列表:', projects.map(p => ({
-      title: p.metadata.title,
-      path: p.path,
-      pathType: typeof p.path
-    })))
+    // 按最后修改时间排序（最新的在前）
+    projects.sort((a, b) => b.metadata.lastModified - a.metadata.lastModified)
     
+    console.log(`扫描到 ${projects.length} 个有效项目`)
     return { success: true, projects }
   } catch (error) {
     console.error('获取项目列表失败:', error)
     return { success: false, error: error.message }
+  }
+})
+
+// 导入项目
+ipcMain.handle('import-project', async (event, options = {}) => {
+  try {
+    // 显示文件选择对话框
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择要导入的项目zip文件',
+      filters: [
+        { name: '项目压缩包', extensions: ['zip'] },
+        { name: '所有文件', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    })
+    
+    if (result.canceled) {
+      return { success: false, canceled: true }
+    }
+    
+    const zipPath = result.filePaths[0]
+    const settings = store.get('settings', defaultSettings)
+    const projectsDir = settings.general.projectsDir
+    
+    // 确保项目目录存在
+    await fs.mkdir(projectsDir, { recursive: true })
+    
+    // 创建临时解压目录
+    const tempDir = path.join(os.tmpdir(), `artimeow-import-${Date.now()}`)
+    await fs.mkdir(tempDir, { recursive: true })
+    
+    try {
+      // 解压文件
+      await extractZip(zipPath, { dir: tempDir })
+      
+      // 查找项目配置文件
+      let projectConfigPath = null
+      let projectName = null
+      let extractedProjectPath = null
+      
+      // 检查临时目录中的内容
+      const tempContents = await fs.readdir(tempDir, { withFileTypes: true })
+      
+      // 查找项目配置文件的位置
+      for (const entry of tempContents) {
+        if (entry.isDirectory()) {
+          const possibleConfigPath = path.join(tempDir, entry.name, 'project.json')
+          try {
+            await fs.access(possibleConfigPath)
+            projectConfigPath = possibleConfigPath
+            extractedProjectPath = path.join(tempDir, entry.name)
+            break
+          } catch (error) {
+            // 继续查找
+          }
+        }
+      }
+      
+      // 如果在子目录中没找到，检查根目录
+      if (!projectConfigPath) {
+        const rootConfigPath = path.join(tempDir, 'project.json')
+        try {
+          await fs.access(rootConfigPath)
+          projectConfigPath = rootConfigPath
+          extractedProjectPath = tempDir
+        } catch (error) {
+          throw new Error('未找到有效的项目配置文件 (project.json)')
+        }
+      }
+      
+      // 读取项目配置
+      const projectData = JSON.parse(await fs.readFile(projectConfigPath, 'utf-8'))
+      projectName = projectData.name || 'imported-project'
+      
+      // 检查项目名称是否已存在，如果存在则添加后缀
+      let finalProjectName = projectName
+      let counter = 1
+      while (true) {
+        const targetPath = path.join(projectsDir, finalProjectName)
+        try {
+          await fs.access(targetPath)
+          finalProjectName = `${projectName}_${counter}`
+          counter++
+        } catch (error) {
+          // 目录不存在，可以使用这个名称
+          break
+        }
+      }
+      
+      // 移动项目到目标位置
+      const finalProjectPath = path.join(projectsDir, finalProjectName)
+      await fs.mkdir(finalProjectPath, { recursive: true })
+      
+      // 复制所有文件
+      const copyRecursively = async (src, dest) => {
+        const entries = await fs.readdir(src, { withFileTypes: true })
+        await fs.mkdir(dest, { recursive: true })
+        
+        for (const entry of entries) {
+          const srcPath = path.join(src, entry.name)
+          const destPath = path.join(dest, entry.name)
+          
+          if (entry.isDirectory()) {
+            await copyRecursively(srcPath, destPath)
+          } else {
+            await fs.copyFile(srcPath, destPath)
+          }
+        }
+      }
+      
+      await copyRecursively(extractedProjectPath, finalProjectPath)
+      
+      // 更新项目配置中的名称和时间戳
+      const finalConfigPath = path.join(finalProjectPath, 'project.json')
+      const finalProjectData = JSON.parse(await fs.readFile(finalConfigPath, 'utf-8'))
+      finalProjectData.name = finalProjectName
+      finalProjectData.updateTime = Date.now()
+      if (!finalProjectData.createTime) {
+        finalProjectData.createTime = Date.now()
+      }
+      await fs.writeFile(finalConfigPath, JSON.stringify(finalProjectData, null, 2), 'utf-8')
+      
+      // 清理临时目录
+      await fs.rm(tempDir, { recursive: true, force: true })
+      
+      return {
+        success: true,
+        projectPath: finalProjectPath,
+        projectName: finalProjectName,
+        message: `项目 "${finalProjectName}" 导入成功`
+      }
+      
+    } catch (extractError) {
+      // 清理临时目录
+      try {
+        await fs.rm(tempDir, { recursive: true, force: true })
+      } catch (cleanupError) {
+        console.warn('清理临时目录失败:', cleanupError)
+      }
+      throw extractError
+    }
+    
+  } catch (error) {
+    console.error('导入项目失败:', error)
+    return { 
+      success: false, 
+      error: error.message,
+      details: '请确保选择的是有效的ArtiMeow项目压缩包'
+    }
   }
 })
 
@@ -549,26 +717,49 @@ ipcMain.handle('load-project', async (event, projectPath) => {
   }
 })
 
-ipcMain.handle('get-recent-projects', () => {
-  return store.get('recentProjects', [])
+ipcMain.handle('get-recent-projects', async () => {
+  try {
+    // 复用get-project-list的逻辑，但只返回项目列表
+    const result = await ipcMain.handle('get-project-list', null)();
+    if (result.success && result.projects) {
+      // 转换为旧格式以保持兼容性
+      const recentProjects = result.projects.map(project => ({
+        name: project.metadata.title,
+        path: project.path,
+        description: project.metadata.description,
+        author: project.metadata.author,
+        lastModified: project.metadata.lastModified
+      }));
+      return recentProjects;
+    }
+    return [];
+  } catch (error) {
+    console.error('获取最近项目失败:', error);
+    return [];
+  }
 })
 
-ipcMain.handle('add-recent-project', (event, projectPath) => {
-  const recentProjects = store.get('recentProjects', [])
-  const filteredProjects = recentProjects.filter(p => p.path !== projectPath)
-  
-  const projectName = path.basename(projectPath)
-  filteredProjects.unshift({
-    name: projectName,
-    path: projectPath,
-    lastOpened: new Date().toISOString()
-  })
-  
-  // 只保留最近的 10 个项目
-  const updatedProjects = filteredProjects.slice(0, 10)
-  store.set('recentProjects', updatedProjects)
-  
-  return updatedProjects
+ipcMain.handle('add-recent-project', async (event, projectPath) => {
+  try {
+    // 基于新的目录扫描模式，我们不需要维护单独的最近项目列表
+    // 只需要更新项目的最后修改时间
+    const configPath = path.join(projectPath, 'project.json');
+    
+    // 检查项目是否存在
+    await fs.access(configPath);
+    
+    // 更新项目配置的updateTime
+    const configData = await fs.readFile(configPath, 'utf-8');
+    const config = JSON.parse(configData);
+    config.updateTime = Date.now();
+    
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('更新项目时间失败:', error);
+    return { success: false, error: error.message };
+  }
 })
 
 // AI 集成
@@ -2653,31 +2844,76 @@ function setupWebServerDataAccess(server) {
   // 创建数据访问器对象
   const dataAccessor = {};
 
-  // 获取项目列表
+  // 获取项目列表 - 新的基于目录扫描的方式
   dataAccessor.getProjects = async function() {
     try {
       const settings = store.get('settings', {})
-      const recentProjects = settings.projectSettings?.recentProjects || []
+      const projectsDir = settings.general?.projectsDir || path.join(os.homedir(), 'ArtiMeowProjects')
       
+      // 确保项目目录存在
+      await fs.mkdir(projectsDir, { recursive: true })
+      
+      // 读取项目目录
+      const entries = await fs.readdir(projectsDir, { withFileTypes: true })
       const projects = []
-      for (const projectPath of recentProjects) {
-        try {
-          const configPath = path.join(projectPath, 'project.json')
-          const configData = await fs.readFile(configPath, 'utf8')
-          const config = JSON.parse(configData)
+      
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const projectPath = path.join(projectsDir, entry.name)
+          const projectFilePath = path.join(projectPath, 'project.json')
           
-          projects.push({
-            id: path.basename(projectPath),
-            name: config.name || path.basename(projectPath),
-            description: config.description || '',
-            path: projectPath,
-            lastModified: config.lastModified || Date.now()
-          })
-        } catch (error) {
-          // 跳过损坏的项目
-          continue
+          try {
+            // 检查项目配置文件是否存在
+            await fs.access(projectFilePath)
+            
+            // 读取项目元数据
+            const projectData = JSON.parse(await fs.readFile(projectFilePath, 'utf-8'))
+            const stats = await fs.stat(projectFilePath)
+            
+            // 计算字数
+            let wordCount = 0
+            const chaptersDir = path.join(projectPath, 'chapters')
+            try {
+              const chapterItems = await fs.readdir(chaptersDir, { withFileTypes: true })
+              for (const item of chapterItems) {
+                if (item.isDirectory()) {
+                  // 目录结构：chapters/chapterID/content.md
+                  const contentPath = path.join(chaptersDir, item.name, 'content.md')
+                  try {
+                    const content = await fs.readFile(contentPath, 'utf-8')
+                    wordCount += getWordCount(content)
+                  } catch (error) {
+                    // 章节内容文件不存在或无法读取
+                  }
+                }
+              }
+            } catch (error) {
+              // 章节目录不存在或无法读取
+            }
+            
+            const projectInfo = {
+              id: entry.name,
+              name: projectData.name || entry.name,
+              description: projectData.description || '',
+              author: projectData.author || '',
+              genre: projectData.genre || '',
+              path: projectPath,
+              created: projectData.createTime || stats.birthtime.getTime(),
+              lastModified: projectData.updateTime || stats.mtime.getTime(),
+              wordCount: wordCount,
+              useGit: projectData.useGit || false,
+              version: projectData.version || '1.0.0'
+            }
+            
+            projects.push(projectInfo)
+          } catch (error) {
+            logger.warn(`跳过无效项目目录 ${entry.name}:`, error.message)
+          }
         }
       }
+      
+      // 按最后修改时间排序（最新的在前）
+      projects.sort((a, b) => b.lastModified - a.lastModified)
       
       return projects
     } catch (error) {
@@ -2703,19 +2939,31 @@ function setupWebServerDataAccess(server) {
           const chapters = []
           
           try {
-            const chapterFiles = await fs.readdir(chaptersPath)
-            for (const file of chapterFiles) {
-              if (file.endsWith('.md')) {
-                const chapterPath = path.join(chaptersPath, file)
-                const stats = await fs.stat(chapterPath)
-                const chapterId = path.basename(file, '.md')
+            const chapterItems = await fs.readdir(chaptersPath, { withFileTypes: true })
+            for (const item of chapterItems) {
+              if (item.isDirectory()) {
+                // 目录结构：chapters/chapterID/metadata.json + content.md
+                const chapterDir = path.join(chaptersPath, item.name)
+                const metadataPath = path.join(chapterDir, 'metadata.json')
+                const contentPath = path.join(chapterDir, 'content.md')
                 
-                chapters.push({
-                  id: chapterId,
-                  name: chapterId,
-                  lastModified: stats.mtime.getTime(),
-                  size: stats.size
-                })
+                try {
+                  if (await fs.pathExists(metadataPath)) {
+                    const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'))
+                    const stats = await fs.stat(contentPath).catch(() => ({ mtime: new Date(), size: 0 }))
+                    
+                    chapters.push({
+                      id: metadata.id || item.name,
+                      name: metadata.title || item.name,
+                      title: metadata.title || item.name,
+                      lastModified: stats.mtime.getTime(),
+                      size: stats.size,
+                      wordCount: metadata.wordCount || 0
+                    })
+                  }
+                } catch (error) {
+                  logger.warn(`获取章节 ${item.name} 信息失败:`, error.message)
+                }
               }
             }
           } catch (error) {
@@ -2741,25 +2989,85 @@ function setupWebServerDataAccess(server) {
   // 获取章节内容
   dataAccessor.getChapterContent = async function(projectId, chapterId) {
     try {
-      const settings = store.get('settings', {})
-      const recentProjects = settings.projectSettings?.recentProjects || []
+      logger.info('获取章节内容请求:', { projectId, chapterId });
       
-      for (const projectPath of recentProjects) {
-        if (path.basename(projectPath) === projectId) {
-          const chapterPath = path.join(projectPath, 'chapters', `${chapterId}.md`)
-          const content = await fs.readFile(chapterPath, 'utf8')
-          const stats = await fs.stat(chapterPath)
-          
-          return {
-            id: chapterId,
-            content: content,
-            lastModified: stats.mtime.getTime(),
-            size: stats.size
-          }
+      // projectId可能是完整路径或项目名称，需要处理两种情况
+      let projectPath = projectId;
+      
+      // 如果是URL编码的路径，需要解码
+      if (projectId.includes('%')) {
+        projectPath = decodeURIComponent(projectId);
+        logger.info('解码后的项目路径:', projectPath);
+      }
+      
+      // 如果projectPath不是绝对路径，则从recent projects中查找
+      if (!path.isAbsolute(projectPath)) {
+        logger.info('不是绝对路径，从最近项目中查找...');
+        const settings = store.get('settings', {})
+        const recentProjects = settings.projectSettings?.recentProjects || []
+        logger.info('最近项目列表:', recentProjects);
+        
+        const foundProject = recentProjects.find(p => 
+          path.basename(p) === projectId || 
+          p.includes(projectId)
+        );
+        
+        if (foundProject) {
+          projectPath = foundProject;
+          logger.info('找到匹配项目:', projectPath);
+        } else {
+          logger.error('项目未找到在最近项目中:', projectId);
+          throw new Error(`项目未找到: ${projectId}`);
         }
       }
       
-      throw new Error('章节未找到')
+      // 使用新的目录结构：chapters/chapterID/content.md
+      const chapterDir = path.join(projectPath, 'chapters', chapterId)
+      const contentPath = path.join(chapterDir, 'content.md')
+      const metadataPath = path.join(chapterDir, 'metadata.json')
+      logger.info('章节目录路径:', chapterDir);
+      logger.info('章节内容文件路径:', contentPath);
+      logger.info('章节元数据文件路径:', metadataPath);
+      
+      // 检查内容文件是否存在
+      const fileExists = await fs.pathExists(contentPath);
+      logger.info('章节内容文件是否存在:', fileExists);
+      
+      if (!fileExists) {
+        logger.error('章节内容文件不存在:', contentPath);
+        throw new Error(`章节文件不存在: ${chapterId}`);
+      }
+      
+      const content = await fs.readFile(contentPath, 'utf8')
+      const stats = await fs.stat(contentPath)
+      
+      // 尝试读取章节元数据
+      let metadata = { id: chapterId, title: chapterId }
+      try {
+        const metadataContent = await fs.readFile(metadataPath, 'utf8')
+        metadata = JSON.parse(metadataContent)
+      } catch (error) {
+        logger.warn('无法读取章节元数据，使用默认值:', error.message)
+      }
+      
+      logger.info('章节内容读取成功:', { 
+        chapterId, 
+        title: metadata.title,
+        contentLength: content.length,
+        lastModified: stats.mtime.getTime()
+      });
+      
+      return {
+        success: true,
+        chapter: {
+          id: chapterId,
+          title: metadata.title || chapterId,
+          content: content,
+          lastModified: stats.mtime.getTime(),
+          size: stats.size,
+          wordCount: metadata.wordCount || 0
+        }
+      }
     } catch (error) {
       logger.error('Web服务器获取章节内容失败:', error)
       throw error
@@ -2769,20 +3077,42 @@ function setupWebServerDataAccess(server) {
   // 保存章节内容
   dataAccessor.saveChapterContent = async function(projectId, chapterId, content) {
     try {
-      const settings = store.get('settings', {})
-      const recentProjects = settings.projectSettings?.recentProjects || []
+      // projectId可能是完整路径或项目名称，需要处理两种情况
+      let projectPath = projectId;
       
-      for (const projectPath of recentProjects) {
-        if (path.basename(projectPath) === projectId) {
-          const chapterPath = path.join(projectPath, 'chapters', `${chapterId}.md`)
-          await fs.writeFile(chapterPath, content, 'utf8')
-          
-          logger.info(`Web服务器保存章节成功: ${projectId}/${chapterId}`)
-          return true
+      // 如果是URL编码的路径，需要解码
+      if (projectId.includes('%')) {
+        projectPath = decodeURIComponent(projectId);
+      }
+      
+      // 如果projectPath不是绝对路径，则从recent projects中查找
+      if (!path.isAbsolute(projectPath)) {
+        const settings = store.get('settings', {})
+        const recentProjects = settings.projectSettings?.recentProjects || []
+        
+        const foundProject = recentProjects.find(p => 
+          path.basename(p) === projectId || 
+          p.includes(projectId)
+        );
+        
+        if (foundProject) {
+          projectPath = foundProject;
+        } else {
+          throw new Error(`项目未找到: ${projectId}`);
         }
       }
       
-      throw new Error('项目未找到')
+      // 使用新的目录结构：chapters/chapterID/content.md
+      const chapterDir = path.join(projectPath, 'chapters', chapterId)
+      const contentPath = path.join(chapterDir, 'content.md')
+      
+      // 确保章节目录存在
+      await fs.ensureDir(chapterDir);
+      
+      await fs.writeFile(contentPath, content, 'utf8')
+      
+      logger.info(`Web服务器保存章节成功: ${projectId}/${chapterId}`)
+      return { success: true }
     } catch (error) {
       logger.error('Web服务器保存章节内容失败:', error)
       throw error
@@ -2811,49 +3141,34 @@ function setupWebServerDataAccess(server) {
     }
   }
   
-  // 获取最近项目
+  // 获取最近项目 - 基于新的目录扫描方式
   dataAccessor.getRecentProjects = async function() {
     try {
-      const settings = store.get('settings', {})
-      const recentProjects = settings.projectSettings?.recentProjects || []
+      // 复用getProjects的逻辑
+      const projects = await this.getProjects();
       
-      const projects = []
-      for (const projectPath of recentProjects) {
-        try {
-          const configPath = path.join(projectPath, 'project.json')
-          const configData = await fs.readFile(configPath, 'utf8')
-          const config = JSON.parse(configData)
-          const stats = await fs.stat(configPath)
-          
-          projects.push({
-            id: path.basename(projectPath),
-            name: config.name || path.basename(projectPath),
-            description: config.description || '',
-            path: projectPath,
-            lastModified: stats.mtime.getTime(),
-            createTime: config.createTime || stats.birthtime?.getTime() || stats.mtime.getTime()
-          })
-        } catch (error) {
-          // 跳过损坏的项目，但记录日志
-          logger.warn(`跳过损坏的项目: ${projectPath}`, error.message)
-          continue
-        }
-      }
-      
-      // 按最后修改时间排序
-      projects.sort((a, b) => b.lastModified - a.lastModified)
+      // 转换为旧格式以保持兼容性
+      const recentProjects = projects.map(project => ({
+        id: project.id,
+        name: project.name,
+        path: project.path,
+        description: project.description,
+        author: project.author,
+        lastModified: project.lastModified,
+        createTime: project.created
+      }));
       
       return {
         success: true,
-        projects: projects
-      }
+        projects: recentProjects
+      };
     } catch (error) {
-      logger.error('Web服务器获取最近项目失败:', error)
+      logger.error('Web服务器获取最近项目失败:', error);
       return {
         success: false,
         projects: [],
         error: error.message
-      }
+      };
     }
   }
   
@@ -2888,10 +3203,8 @@ function setupWebServerDataAccess(server) {
       // 按文件名排序
       tutorials.sort((a, b) => a.filename.localeCompare(b.filename))
       
-      return {
-        success: true,
-        files: tutorials
-      }
+      // 返回数组格式以与Electron版本兼容
+      return tutorials
     } catch (error) {
       logger.error('Web服务器获取教程文件失败:', error)
       return {
@@ -2899,6 +3212,349 @@ function setupWebServerDataAccess(server) {
         files: [],
         error: error.message
       }
+    }
+  }
+
+  // 添加最近项目 - 简化逻辑，只更新时间戳
+  dataAccessor.addRecentProject = async function(projectPath) {
+    try {
+      // 基于新的目录扫描模式，我们不需要维护单独的最近项目列表
+      // 只需要更新项目的最后修改时间
+      const configPath = path.join(projectPath, 'project.json');
+      
+      // 检查项目是否存在
+      await fs.access(configPath);
+      
+      // 更新项目配置的updateTime
+      const configData = await fs.readFile(configPath, 'utf-8');
+      const config = JSON.parse(configData);
+      config.updateTime = Date.now();
+      
+      await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+      
+      return { success: true };
+    } catch (error) {
+      logger.error('Web服务器更新项目时间失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 创建项目
+  dataAccessor.createProject = async function(projectData) {
+    try {
+      // 获取项目目录设置
+      const settings = store.get('settings', {})
+      const projectsDir = settings.projectsDir || path.join(os.homedir(), 'ArtiMeowProjects')
+      
+      // 确保项目目录存在
+      await fs.mkdir(projectsDir, { recursive: true })
+      
+      // 创建项目文件夹
+      const projectPath = path.join(projectsDir, projectData.name)
+      await fs.mkdir(projectPath, { recursive: true })
+      
+      // 创建项目配置文件
+      const projectConfig = {
+        name: projectData.name,
+        description: projectData.description || '',
+        author: projectData.author || '',
+        genre: projectData.genre || '',
+        createTime: Date.now(),
+        updateTime: Date.now(),
+        version: '1.0.0',
+        useGit: projectData.useGit || false,
+        chapters: []
+      }
+      
+      const configPath = path.join(projectPath, 'project.json')
+      await fs.writeFile(configPath, JSON.stringify(projectConfig, null, 2), 'utf8')
+      
+      // 创建chapters目录
+      await fs.mkdir(path.join(projectPath, 'chapters'), { recursive: true })
+      
+      // 如果启用Git，初始化仓库
+      if (projectData.useGit) {
+        try {
+          await execAsync('git init', { cwd: projectPath })
+          await execAsync('git add .', { cwd: projectPath })
+          await execAsync('git commit -m "Initial commit"', { cwd: projectPath })
+        } catch (gitError) {
+          logger.warn('Git初始化失败:', gitError.message)
+        }
+      }
+      
+      return {
+        success: true,
+        projectDir: projectPath,
+        config: projectConfig
+      }
+    } catch (error) {
+      logger.error('Web服务器创建项目失败:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  // 加载项目
+  dataAccessor.loadProject = async function(projectPath) {
+    try {
+      const configPath = path.join(projectPath, 'project.json')
+      const configData = await fs.readFile(configPath, 'utf8')
+      const config = JSON.parse(configData)
+      
+      // 读取章节列表 - 支持两种结构：目录结构和文件结构
+      const chaptersDir = path.join(projectPath, 'chapters')
+      const chapters = []
+      
+      try {
+        const chapterItems = await fs.readdir(chaptersDir, { withFileTypes: true })
+        
+        for (const item of chapterItems) {
+          if (item.isDirectory()) {
+            // 目录结构：chapters/chapterID/metadata.json + content.md
+            try {
+              const chapterDir = path.join(chaptersDir, item.name)
+              const metadataPath = path.join(chapterDir, 'metadata.json')
+              const contentPath = path.join(chapterDir, 'content.md')
+              
+              if (await fs.pathExists(metadataPath)) {
+                const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'))
+                const content = await fs.readFile(contentPath, 'utf8').catch(() => '')
+                const stats = await fs.stat(contentPath).catch(() => ({ mtime: new Date() }))
+                
+                chapters.push({
+                  ...metadata,
+                  content: content,
+                  lastModified: stats.mtime.getTime()
+                })
+              }
+            } catch (error) {
+              logger.warn(`加载章节目录 ${item.name} 失败:`, error.message)
+            }
+          }
+          // 移除对单文件结构的支持
+        }
+      } catch (error) {
+        logger.warn('读取章节目录失败:', error.message)
+      }
+      
+      // 按创建时间排序章节
+      chapters.sort((a, b) => (a.createTime || 0) - (b.createTime || 0))
+      
+      logger.info(`Web服务器加载项目成功: ${config.title}, 章节数: ${chapters.length}`)
+      
+      return {
+        success: true,
+        project: {
+          ...config,
+          path: projectPath,
+          chapters: chapters
+        }
+      }
+    } catch (error) {
+      logger.error('Web服务器加载项目失败:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  // 保存项目
+  dataAccessor.saveProject = async function(saveData) {
+    try {
+      const { projectPath, config, chapters } = saveData
+      
+      // 更新项目配置
+      if (config) {
+        config.updateTime = Date.now()
+        const configPath = path.join(projectPath, 'project.json')
+        await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8')
+      }
+      
+      // 保存章节
+      if (chapters && Array.isArray(chapters)) {
+        const chaptersDir = path.join(projectPath, 'chapters')
+        await fs.mkdir(chaptersDir, { recursive: true })
+        
+        for (const chapter of chapters) {
+          // 使用目录结构：chapters/chapterID/content.md + metadata.json
+          const chapterDir = path.join(chaptersDir, chapter.id)
+          await fs.mkdir(chapterDir, { recursive: true })
+          
+          // 保存内容文件
+          const contentPath = path.join(chapterDir, 'content.md')
+          await fs.writeFile(contentPath, chapter.content || '', 'utf8')
+          
+          // 保存元数据文件
+          const metadata = {
+            id: chapter.id,
+            title: chapter.title || chapter.name || chapter.id,
+            wordCount: getWordCount(chapter.content || ''),
+            createdAt: chapter.createdAt || new Date().toISOString(),
+            lastModified: new Date().toISOString()
+          }
+          const metadataPath = path.join(chapterDir, 'metadata.json')
+          await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8')
+        }
+      }
+      
+      return { success: true }
+    } catch (error) {
+      logger.error('Web服务器保存项目失败:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  // 删除项目
+  dataAccessor.deleteProject = async function(projectPath) {
+    try {
+      await fs.rm(projectPath, { recursive: true, force: true })
+      
+      // 从最近项目中移除
+      const settings = store.get('settings', {})
+      if (settings.projectSettings?.recentProjects) {
+        const index = settings.projectSettings.recentProjects.indexOf(projectPath)
+        if (index > -1) {
+          settings.projectSettings.recentProjects.splice(index, 1)
+          store.set('settings', settings)
+        }
+      }
+      
+      return { success: true }
+    } catch (error) {
+      logger.error('Web服务器删除项目失败:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  // 导入项目
+  dataAccessor.importProject = async function(zipBuffer, originalName) {
+    try {
+      const settings = store.get('settings', {})
+      const projectsDir = settings.general?.projectsDir || path.join(os.homedir(), 'ArtiMeowProjects')
+      
+      // 确保项目目录存在
+      await fs.mkdir(projectsDir, { recursive: true })
+      
+      // 创建临时文件
+      const tempZipPath = path.join(os.tmpdir(), `artimeow-web-import-${Date.now()}.zip`)
+      await fs.writeFile(tempZipPath, zipBuffer)
+      
+      // 创建临时解压目录
+      const tempDir = path.join(os.tmpdir(), `artimeow-web-extract-${Date.now()}`)
+      await fs.mkdir(tempDir, { recursive: true })
+      
+      try {
+        // 解压文件
+        await extractZip(tempZipPath, { dir: tempDir })
+        
+        // 查找项目配置文件
+        let projectConfigPath = null
+        let extractedProjectPath = null
+        
+        // 检查临时目录中的内容
+        const tempContents = await fs.readdir(tempDir, { withFileTypes: true })
+        
+        // 查找项目配置文件的位置
+        for (const entry of tempContents) {
+          if (entry.isDirectory()) {
+            const possibleConfigPath = path.join(tempDir, entry.name, 'project.json')
+            try {
+              await fs.access(possibleConfigPath)
+              projectConfigPath = possibleConfigPath
+              extractedProjectPath = path.join(tempDir, entry.name)
+              break
+            } catch (error) {
+              // 继续查找
+            }
+          }
+        }
+        
+        // 如果在子目录中没找到，检查根目录
+        if (!projectConfigPath) {
+          const rootConfigPath = path.join(tempDir, 'project.json')
+          try {
+            await fs.access(rootConfigPath)
+            projectConfigPath = rootConfigPath
+            extractedProjectPath = tempDir
+          } catch (error) {
+            throw new Error('未找到有效的项目配置文件 (project.json)')
+          }
+        }
+        
+        // 读取项目配置
+        const projectData = JSON.parse(await fs.readFile(projectConfigPath, 'utf-8'))
+        let projectName = projectData.name || originalName || 'imported-project'
+        
+        // 检查项目名称是否已存在，如果存在则添加后缀
+        let finalProjectName = projectName
+        let counter = 1
+        while (true) {
+          const targetPath = path.join(projectsDir, finalProjectName)
+          try {
+            await fs.access(targetPath)
+            finalProjectName = `${projectName}_${counter}`
+            counter++
+          } catch (error) {
+            // 目录不存在，可以使用这个名称
+            break
+          }
+        }
+        
+        // 移动项目到目标位置
+        const finalProjectPath = path.join(projectsDir, finalProjectName)
+        await fs.mkdir(finalProjectPath, { recursive: true })
+        
+        // 复制所有文件
+        const copyRecursively = async (src, dest) => {
+          const entries = await fs.readdir(src, { withFileTypes: true })
+          await fs.mkdir(dest, { recursive: true })
+          
+          for (const entry of entries) {
+            const srcPath = path.join(src, entry.name)
+            const destPath = path.join(dest, entry.name)
+            
+            if (entry.isDirectory()) {
+              await copyRecursively(srcPath, destPath)
+            } else {
+              await fs.copyFile(srcPath, destPath)
+            }
+          }
+        }
+        
+        await copyRecursively(extractedProjectPath, finalProjectPath)
+        
+        // 更新项目配置
+        const finalConfigPath = path.join(finalProjectPath, 'project.json')
+        const finalProjectData = JSON.parse(await fs.readFile(finalConfigPath, 'utf-8'))
+        finalProjectData.name = finalProjectName
+        finalProjectData.updateTime = Date.now()
+        if (!finalProjectData.createTime) {
+          finalProjectData.createTime = Date.now()
+        }
+        await fs.writeFile(finalConfigPath, JSON.stringify(finalProjectData, null, 2), 'utf-8')
+        
+        // 清理临时文件
+        await fs.rm(tempDir, { recursive: true, force: true })
+        await fs.rm(tempZipPath, { force: true })
+        
+        return {
+          success: true,
+          projectPath: finalProjectPath,
+          projectName: finalProjectName
+        }
+        
+      } catch (extractError) {
+        // 清理临时文件
+        try {
+          await fs.rm(tempDir, { recursive: true, force: true })
+          await fs.rm(tempZipPath, { force: true })
+        } catch (cleanupError) {
+          logger.warn('清理临时文件失败:', cleanupError)
+        }
+        throw extractError
+      }
+      
+    } catch (error) {
+      logger.error('Web服务器导入项目失败:', error)
+      return { success: false, error: error.message }
     }
   }
 

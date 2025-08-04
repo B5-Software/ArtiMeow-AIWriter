@@ -347,7 +347,9 @@ class ContextMenuManager {
                 this.cachedProjectItem = cachedInfo;
                 
                 // 处理项目操作
-                this.handleProjectAction(action, projectItem);
+                this.handleProjectAction(action, projectItem).catch(error => {
+                    console.error('处理项目操作失败:', error);
+                });
             };
             
             item.addEventListener('click', item._contextHandler);
@@ -484,7 +486,7 @@ class ContextMenuManager {
         }, 0);
     }
 
-    handleProjectAction(action, projectItem) {
+    async handleProjectAction(action, projectItem) {
         console.log('=== 处理项目右键菜单动作 ===');
         console.log('动作:', action);
         console.log('项目元素:', projectItem);
@@ -538,53 +540,49 @@ class ContextMenuManager {
         switch (action) {
             case 'open-project':
                 console.log('执行打开项目操作');
-                if (window.projectManager) {
+                if (window.appManager) {
                     try {
-                        window.projectManager.openProject(projectPath);
-                        this.showNotification(`正在打开项目: ${projectName}`, 'info');
+                        await window.appManager.loadProject(projectPath);
+                        this.showNotification(`项目 "${projectName}" 打开成功`, 'success');
                     } catch (error) {
                         console.error('打开项目失败:', error);
-                        this.showNotification('打开项目失败', 'error');
+                        this.showNotification('打开项目失败: ' + error.message, 'error');
                     }
                 } else {
-                    console.error('项目管理器不存在');
-                    this.showNotification('项目管理器不可用', 'error');
+                    console.error('应用程序实例不存在');
+                    this.showNotification('应用程序不可用', 'error');
                 }
                 break;
                 
             case 'export-project':
                 console.log('执行导出项目操作');
-                if (window.projectManager) {
+                if (window.appManager) {
                     try {
-                        window.projectManager.exportProject(projectPath);
-                        this.showNotification(`正在导出项目: ${projectName}`, 'info');
+                        await window.appManager.exportProject(projectPath);
+                        this.showNotification(`项目 "${projectName}" 导出成功`, 'success');
                     } catch (error) {
                         console.error('导出项目失败:', error);
-                        this.showNotification('导出项目失败', 'error');
+                        this.showNotification('导出项目失败: ' + error.message, 'error');
                     }
                 } else {
-                    console.error('项目管理器不存在');
-                    this.showNotification('项目管理器不可用', 'error');
+                    console.error('应用程序实例不存在');
+                    this.showNotification('应用程序不可用', 'error');
                 }
                 break;
                 
             case 'delete-project':
                 console.log('执行删除项目操作');
-                if (window.projectManager) {
-                    if (confirm(`确定要删除项目 "${projectName}" 吗？\n\n路径: ${projectPath}\n\n此操作不可恢复！`)) {
-                        try {
-                            window.projectManager.deleteProject(projectPath);
-                            this.showNotification(`正在删除项目: ${projectName}`, 'info');
-                        } catch (error) {
-                            console.error('删除项目失败:', error);
-                            this.showNotification('删除项目失败', 'error');
-                        }
-                    } else {
-                        console.log('用户取消删除操作');
+                if (window.appManager) {
+                    try {
+                        await window.appManager.deleteProject(projectPath);
+                        // 不需要手动通知，deleteProject方法内部会处理
+                    } catch (error) {
+                        console.error('删除项目失败:', error);
+                        this.showNotification('删除项目失败: ' + error.message, 'error');
                     }
                 } else {
-                    console.error('项目管理器不存在');
-                    this.showNotification('项目管理器不可用', 'error');
+                    console.error('应用程序实例不存在');
+                    this.showNotification('应用程序不可用', 'error');
                 }
                 break;
                 

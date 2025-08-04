@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveProject: (saveData) => ipcRenderer.invoke('save-project', saveData),
   deleteProject: (projectPath) => ipcRenderer.invoke('delete-project', projectPath),
   exportProject: (exportData) => ipcRenderer.invoke('export-project', exportData),
+  importProject: (options) => ipcRenderer.invoke('import-project', options),
   loadProject: (projectPath) => ipcRenderer.invoke('load-project', projectPath),
   getRecentProjects: () => ipcRenderer.invoke('get-recent-projects'),
   addRecentProject: (projectPath) => ipcRenderer.invoke('add-recent-project', projectPath),
