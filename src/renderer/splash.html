@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtiMeow AI Writer - 启动中</title>
+    <link rel="stylesheet" href="assets/fonts/all.min.css">
+    <style>
+        :root {
+            /* 默认深色主题 */
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-accent: #3d3d3d;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --text-muted: #808080;
+            --accent-color: #6c5ce7;
+            --accent-light: #a29bfe;
+            --progress-bg: rgba(255, 255, 255, 0.1);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-accent: #e9ecef;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --text-muted: #adb5bd;
+            --accent-color: #6f42c1;
+            --accent-light: #8e6ed8;
+            --progress-bg: rgba(0, 0, 0, 0.1);
+            --glass-bg: rgba(255, 255, 255, 0.8);
+            --glass-border: rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--bg-primary);
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* 跟随系统主题 */
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8f9fa;
+                --bg-accent: #e9ecef;
+                --text-primary: #212529;
+                --text-secondary: #6c757d;
+                --text-muted: #adb5bd;
+                --accent-color: #6f42c1;
+                --accent-light: #8e6ed8;
+                --progress-bg: rgba(0, 0, 0, 0.1);
+                --glass-bg: rgba(255, 255, 255, 0.8);
+                --glass-border: rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        .splash-container {
+            width: 100%;
+            height: 100%;
+            aspect-ratio: 16 / 9;
+            max-width: 800px;
+            max-height: 450px;
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 60px 40px;
+            box-sizing: border-box;
+        }
+
+        .logo-container {
+            margin-bottom: 50px;
+        }
+
+        .app-logo {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 24px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(108, 92, 231, 0.25);
+        }
+
+        .app-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .app-name {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
+        }
+
+        .app-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .loading-section {
+            margin-top: 40px;
+        }
+
+        .progress-container {
+            margin-bottom: 24px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 3px;
+            background: var(--progress-bg);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-light));
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .loading-status {
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            min-height: 18px;
+        }
+
+        /* 简洁的状态指示器 */
+        .status-indicator {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            margin-left: 8px;
+            opacity: 0.6;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+    </style>
+</head>
+<body>
+    <div class="splash-container">
+        <div class="logo-container">
+            <div class="app-logo">
+                <img src="assets/icons/icon.png" alt="ArtiMeow Logo" />
+            </div>
+            <h1 class="app-name">ArtiMeow</h1>
+            <p class="app-subtitle">AI Writer</p>
+        </div>
+        
+        <div class="loading-section">
+            <div class="progress-container">
+                <div class="progress-track">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+            </div>
+            
+            <div class="loading-status" id="loading-status">
+                正在初始化</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let progressValue = 0;
+        let isReady = false;
+
+        // 更新进度条
+        function updateProgress(percentage) {
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = Math.min(percentage, 100) + '%';
+            progressValue = percentage;
+        }
+
+        // 更新状态文本
+        function updateStatus(status) {
+            const statusElement = document.getElementById('loading-status');
+            statusElement.innerHTML = status + '</span>';
+        }
+
+        // 简化的加载过程
+        async function startLoading() {
+            try {
+                updateStatus('初始化应用');
+                updateProgress(25);
+                
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                updateStatus('加载核心模块');
+                updateProgress(50);
+                
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                updateStatus('准备界面');
+                updateProgress(75);
+                
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                updateStatus('启动完成');
+                updateProgress(100);
+
+                // 稍微等待一下让用户看到完成状态
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                // 通知主进程准备就绪
+                if (window.electronAPI && window.electronAPI.splashReady) {
+                    window.electronAPI.splashReady();
+                }
+
+            } catch (error) {
+                console.error('加载过程出错:', error);
+                updateStatus('启动完成');
+                updateProgress(100);
+                
+                // 即使出错也要继续
+                setTimeout(() => {
+                    if (window.electronAPI && window.electronAPI.splashReady) {
+                        window.electronAPI.splashReady();
+                    }
+                }, 500);
+            }
+        }
+
+        // 等待 DOM 加载完成后开始
+        document.addEventListener('DOMContentLoaded', () => {
+            startLoading();
+        });
+
+        // 接收来自主进程的消息
+        if (window.electronAPI) {
+            window.electronAPI.onSplashUpdate((data) => {
+                if (data.progress !== undefined) {
+                    updateProgress(data.progress);
+                }
+                if (data.status) {
+                    updateStatus(data.status);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

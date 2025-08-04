@@ -573,12 +573,13 @@
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: var(--transition-fast);
+  opacity: 0.8;
   
   /* 核心焦点防护 - 最强防护 */
   -webkit-user-select: none;
@@ -607,6 +608,7 @@
 .markdown-toolbar .toolbar-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
+  opacity: 1;
 }
 
 .markdown-toolbar .toolbar-btn.active {

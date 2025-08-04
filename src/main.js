@@ -11,6 +11,7 @@ const extractZip = require('extract-zip')
 const store = new Store.default ? new Store.default() : new Store()
 let aiProcess = null
 let mainWindow = null
+let splashWindow = null
 
 // 环境变量
 const isDev = process.env.NODE_ENV === 'development'
@@ -144,7 +145,7 @@ function createWindow() {
       webSecurity: !isDev // 开发时允许跨域，生产环境开启安全限制
     },
     frame: false, // 禁用原生窗口框架
-    show: false,
+    show: false, // 初始不显示，等加载完成后显示
     icon: iconPath
   })
 
@@ -164,6 +165,11 @@ function createWindow() {
   })
 
   mainWindow.once('ready-to-show', () => {
+    // 窗口准备好后，关闭启动画面并显示主窗口
+    if (splashWindow) {
+      splashWindow.close()
+      splashWindow = null
+    }
     mainWindow.show()
     logger.info('应用窗口已显示')
   })
@@ -173,14 +179,58 @@ function createWindow() {
   })
 }
 
+function createSplashWindow() {
+  // 设置窗口图标路径
+  let iconPath
+  if (process.platform === 'win32') {
+    iconPath = isPackaged ? 
+      path.join(process.resourcesPath, 'icon', 'icon.ico') :
+      path.join(__dirname, '..', 'src', 'icon', 'icon.ico')
+  } else if (process.platform === 'darwin') {
+    iconPath = getResourcePath('renderer/assets/icons/icon.icns')
+  } else {
+    iconPath = getResourcePath('renderer/assets/icons/icon.png')
+  }
+
+  splashWindow = new BrowserWindow({
+    width: 800,
+    height: 450,
+    frame: false,
+    alwaysOnTop: true,
+    transparent: false,
+    resizable: false,
+    movable: false,
+    center: true,
+    webPreferences: {
+      preload: getResourcePath('preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false
+    },
+    icon: iconPath
+  })
+
+  // 加载启动画面
+  splashWindow.loadFile(path.join(__dirname, 'renderer/splash.html'))
+
+  splashWindow.on('closed', () => {
+    splashWindow = null
+  })
+
+  logger.info('启动画面窗口已创建')
+}
+
 // 应用就绪时创建窗口
 app.whenReady().then(() => {
-  createWindow()
+  // 首先创建启动画面
+  createSplashWindow()
+  
+  // 不再自动创建主窗口，等待启动画面准备就绪的信号
 
   // macOS 特定处理
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+      createSplashWindow()
     }
   })
 })
@@ -200,6 +250,15 @@ function initializeSettings() {
 }
 
 // IPC 处理程序
+
+// 启动画面相关
+ipcMain.handle('splash-ready', () => {
+  // 启动画面准备就绪，可以开始创建主窗口
+  logger.info('启动画面准备就绪')
+  if (!mainWindow) {
+    createWindow()
+  }
+})
 
 // 设置相关
 ipcMain.handle('get-settings', () => {
@@ -752,7 +811,21 @@ ipcMain.handle('read-file', async (event, filePath) => {
 
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
+    // 确保目录存在
+    const dir = path.dirname(filePath)
+    await fs.mkdir(dir, { recursive: true })
+    
     await fs.writeFile(filePath, content, 'utf-8')
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+})
+
+// 创建目录
+ipcMain.handle('create-directory', async (event, dirPath) => {
+  try {
+    await fs.mkdir(dirPath, { recursive: true })
     return { success: true }
   } catch (error) {
     return { success: false, error: error.message }
@@ -2270,5 +2343,169 @@ ipcMain.handle('read-tutorial-file', async (event, filename) => {
   } catch (error) {
     console.error('读取教程文件失败:', error)
     throw error
+  }
+})
+
+// 获取应用版本信息
+ipcMain.handle('get-app-version-info', async () => {
+  try {
+    // 读取主package.json
+    const packageJsonPath = isPackaged ?
+      path.join(process.resourcesPath, 'app.asar', 'package.json') :
+      path.join(__dirname, '..', 'package.json')
+    
+    logger.info('读取package.json路径:', packageJsonPath)
+    
+    let packageInfo
+    try {
+      if (isPackaged) {
+        // 在打包环境中，直接使用require读取
+        packageInfo = require(path.join(__dirname, '..', 'package.json'))
+      } else {
+        // 在开发环境中，读取文件
+        const packageContent = await fs.readFile(packageJsonPath, 'utf8')
+        packageInfo = JSON.parse(packageContent)
+      }
+    } catch (error) {
+      logger.error('无法读取package.json，使用备用方法:', error)
+      // 备用方法：直接require当前目录的package.json
+      packageInfo = require('../../package.json')
+    }
+
+    // 获取Node.js模块路径
+    const nodeModulesPath = isPackaged ?
+      path.join(process.resourcesPath, 'app.asar', 'node_modules') :
+      path.join(__dirname, '..', 'node_modules')
+
+    // 读取关键依赖包的版本信息
+    const getDependencyVersion = async (packageName) => {
+      try {
+        if (isPackaged) {
+          // 在打包环境中，尝试从app.asar中读取
+          try {
+            const depPackage = require(path.join(__dirname, '..', 'node_modules', packageName, 'package.json'))
+            return depPackage.version
+          } catch (error) {
+            // 如果打包环境中读取失败，从主package.json中获取
+            const version = packageInfo.dependencies?.[packageName] || packageInfo.devDependencies?.[packageName]
+            return version ? version.replace(/[\^~]/, '') : 'Unknown'
+          }
+        } else {
+          // 在开发环境中读取文件
+          const depPackagePath = path.join(__dirname, '..', 'node_modules', packageName, 'package.json')
+          const depContent = await fs.readFile(depPackagePath, 'utf8')
+          const depPackage = JSON.parse(depContent)
+          return depPackage.version
+        }
+      } catch (error) {
+        logger.warn(`无法获取 ${packageName} 版本:`, error)
+        // 备用方法：从主package.json的dependencies中获取
+        const version = packageInfo.dependencies?.[packageName] || packageInfo.devDependencies?.[packageName]
+        return version ? version.replace(/[\^~]/, '') : 'Unknown'
+      }
+    }
+
+    // 获取Electron版本（特殊处理）
+    const getElectronVersion = () => {
+      try {
+        return process.versions.electron || 'Unknown'
+      } catch (error) {
+        logger.warn('无法获取Electron版本:', error)
+        return packageInfo.devDependencies?.electron?.replace(/[\^~]/, '') || 'Unknown'
+      }
+    }
+
+    // 获取关键包版本
+    const [
+      markedVersion,
+      axiosVersion,
+      highlightjsVersion,
+      electronStoreVersion,
+      archiverVersion,
+      diffVersion,
+      extractZipVersion
+    ] = await Promise.all([
+      getDependencyVersion('marked'),
+      getDependencyVersion('axios'),
+      getDependencyVersion('highlight.js'),
+      getDependencyVersion('electron-store'),
+      getDependencyVersion('archiver'),
+      getDependencyVersion('diff'),
+      getDependencyVersion('extract-zip')
+    ])
+
+    const versionInfo = {
+      app: {
+        name: packageInfo.name || 'artimeow-aiwriter',
+        version: packageInfo.version || '1.1.0',
+        description: packageInfo.description || 'ArtiMeow - AI 集成小说写作桌面应用'
+      },
+      system: {
+        platform: process.platform,
+        arch: process.arch,
+        node: process.version,
+        electron: getElectronVersion()
+      },
+      dependencies: {
+        'marked': markedVersion,
+        'axios': axiosVersion,
+        'highlight.js': highlightjsVersion,
+        'electron-store': electronStoreVersion,
+        'archiver': archiverVersion,
+        'diff': diffVersion,
+        'extract-zip': extractZipVersion
+      },
+      buildInfo: {
+        isPackaged: isPackaged,
+        resourcesPath: process.resourcesPath || 'N/A',
+        execPath: process.execPath
+      }
+    }
+
+    logger.info('版本信息收集完成:', versionInfo)
+    return versionInfo
+
+  } catch (error) {
+    logger.error('获取版本信息失败:', error)
+    // 返回基本信息作为备用
+    return {
+      app: {
+        name: 'artimeow-aiwriter',
+        version: '1.1.0',
+        description: 'ArtiMeow - AI 集成小说写作桌面应用'
+      },
+      system: {
+        platform: process.platform,
+        arch: process.arch,
+        node: process.version,
+        electron: process.versions.electron || 'Unknown'
+      },
+      dependencies: {
+        'marked': 'Unknown',
+        'axios': 'Unknown',
+        'highlight.js': 'Unknown',
+        'electron-store': 'Unknown',
+        'archiver': 'Unknown',
+        'diff': 'Unknown',
+        'extract-zip': 'Unknown'
+      },
+      buildInfo: {
+        isPackaged: isPackaged,
+        resourcesPath: process.resourcesPath || 'N/A',
+        execPath: process.execPath
+      },
+      error: error.message
+    }
+  }
+})
+
+// Shell操作处理
+ipcMain.handle('shell-open-external', async (event, url) => {
+  try {
+    await shell.openExternal(url)
+    return { success: true }
+  } catch (error) {
+    logger.error('打开外部链接失败:', error)
+    return { success: false, error: error.message }
   }
 })

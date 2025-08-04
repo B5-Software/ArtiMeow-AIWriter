@@ -8,6 +8,7 @@ class ArtiMeowApp {
     this.settings = null;
     this.currentWordCount = 0; // 全局字数统计变量
     this.isSaved = true; // 保存状态标记
+    this.characterManager = null; // 角色管理器
     this.originalContent = ''; // 原始内容，用于比较是否有变化
     this.saveStatusCheckInterval = null; // 保存状态检查定时器
     this.cachedProjectPath = null; // 缓存的项目路径，用于Git终端
@@ -31,6 +32,9 @@ class ArtiMeowApp {
     try {
       // 清除项目路径缓存（应用启动时清除）
       this.cachedProjectPath = null;
+      
+      // 更新加载屏幕版本信息
+      await this.updateLoadingVersionInfo();
       
       // 更新加载状态
       this.updateLoadingStatus('正在初始化应用...', 0);
@@ -78,9 +82,6 @@ class ArtiMeowApp {
       
       this.updateLoadingStatus('启动完成', 5);
       
-      // 延迟显示加载完成状态
-      setTimeout(() => this.hideLoadingScreen(), 1000);
-      
       console.log('ArtiMeow 初始化完成');
     } catch (error) {
       console.error('应用初始化失败:', error);
@@ -110,17 +111,21 @@ class ArtiMeowApp {
     }
   }
 
-  hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loading-screen');
-    const app = document.getElementById('app');
-    
-    if (loadingScreen && app) {
-      loadingScreen.style.opacity = '0';
-      setTimeout(() => {
-        loadingScreen.style.display = 'none';
-        app.classList.remove('hidden');
-        app.classList.add('animate-fade-in');
-      }, 500);
+  /**
+   * 更新加载屏幕的版本信息
+   */
+  async updateLoadingVersionInfo() {
+    try {
+      const versionInfo = await window.electronAPI.getAppVersionInfo();
+      const versionElement = document.getElementById('loading-version-info');
+      
+      if (versionElement && versionInfo && versionInfo.app) {
+        const version = versionInfo.app.version || '1.1.0';
+        versionElement.textContent = `v${version} - Made by B5-Software`;
+      }
+    } catch (error) {
+      console.warn('无法获取版本信息，使用默认版本:', error);
+      // 保持默认版本信息
     }
   }
 
@@ -158,6 +163,12 @@ class ArtiMeowApp {
     
     // Git教程事件
     this.initGitTutorialEvents();
+    
+    // 章节搜索
+    this.initChapterSearch();
+    
+    // 外部链接处理
+    this.initExternalLinkHandling();
   }
 
   initTitleBarEvents() {
@@ -426,6 +437,12 @@ class ArtiMeowApp {
         const targetPanel = document.getElementById(`${targetTab}-settings`);
         if (targetPanel) {
           targetPanel.classList.add('active');
+          
+          // 如果切换到关于面板，加载版本信息
+          if (targetTab === 'about' && window.settingsManager) {
+            console.log('切换到关于面板，开始加载版本信息...');
+            window.settingsManager.loadVersionInfo();
+          }
         }
       });
     });
@@ -593,6 +610,17 @@ class ArtiMeowApp {
         this.openBackupFolder();
       });
     }
+    
+    // 刷新版本信息按钮
+    const refreshVersionBtn = document.getElementById('refresh-version-info');
+    if (refreshVersionBtn) {
+      refreshVersionBtn.addEventListener('click', () => {
+        console.log('刷新版本信息按钮被点击');
+        if (window.settingsManager) {
+          window.settingsManager.loadVersionInfo();
+        }
+      });
+    }
   }
 
   async loadRecentProjects() {
@@ -715,13 +743,51 @@ class ArtiMeowApp {
     // 更新项目信息
     const projectInfoElement = document.getElementById('current-project-info');
     if (projectInfoElement) {
+      const description = this.currentProject.description || '暂无描述';
       projectInfoElement.innerHTML = `
         <h5>${this.currentProject.name}</h5>
-        <p>${this.currentProject.description || '暂无描述'}</p>
+        <div class="project-description-container">
+          <p class="project-description collapsed">${description}</p>
+          <button class="description-toggle" type="button">
+            <i class="fas fa-chevron-down"></i>
+          </button>
+        </div>
         <p><strong>作者:</strong> ${this.currentProject.author || '未设置'}</p>
         <p><strong>类型:</strong> ${this.currentProject.genre || '未设置'}</p>
         <p><strong>章节数:</strong> ${this.currentProject.chapters?.length || 0}</p>
+        <div class="project-actions">
+          <button id="character-management-btn" class="btn-secondary btn-sm">
+            <i class="fas fa-users"></i> 角色和设定
+          </button>
+        </div>
       `;
+      
+      // 添加折叠功能事件监听器
+      const toggle = projectInfoElement.querySelector('.description-toggle');
+      const descriptionElement = projectInfoElement.querySelector('.project-description');
+      
+      if (toggle && descriptionElement) {
+        toggle.addEventListener('click', () => {
+          const isCollapsed = descriptionElement.classList.contains('collapsed');
+          const icon = toggle.querySelector('i');
+          
+          if (isCollapsed) {
+            descriptionElement.classList.remove('collapsed');
+            icon.className = 'fas fa-chevron-up';
+          } else {
+            descriptionElement.classList.add('collapsed');
+            icon.className = 'fas fa-chevron-down';
+          }
+        });
+      }
+      
+      // 添加角色管理按钮事件监听器
+      const characterBtn = projectInfoElement.querySelector('#character-management-btn');
+      if (characterBtn) {
+        characterBtn.addEventListener('click', () => {
+          this.openCharacterManagement();
+        });
+      }
     }
 
     // 更新章节列表
@@ -1018,13 +1084,16 @@ class ArtiMeowApp {
 
   renderMarkdown(content) {
     // 简单的 Markdown 渲染，可以后续使用 marked 库替换
-    return content
+    let html = content
       .replace(/\n/g, '<br>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/^# (.*?)$/gm, '<h1>$1</h1>')
       .replace(/^## (.*?)$/gm, '<h2>$1</h2>')
-      .replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+      .replace(/^### (.*?)$/gm, '<h3>$1</h3>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="external-link">$1</a>');
+    
+    return html;
   }
 
   showModal(modalId) {
@@ -1186,6 +1255,12 @@ class ArtiMeowApp {
     
     // 加载自定义字体
     this.loadCustomFonts();
+    
+    // 加载版本信息（如果设置管理器可用）
+    if (window.settingsManager) {
+      console.log('设置模态框打开，开始加载版本信息...');
+      window.settingsManager.loadVersionInfo();
+    }
   }
 
   /**
@@ -2602,26 +2677,48 @@ class ArtiMeowApp {
   async applyTheme(theme) {
     const body = document.body;
     // 移除所有主题类
-    body.classList.remove('theme-light', 'theme-dark', 'theme-auto');
+    body.classList.remove('light-theme', 'dark-theme', 'auto-theme');
+    
     // 应用新主题
     switch (theme) {
       case 'light':
-        body.classList.add('theme-light');
+        body.classList.add('light-theme');
         break;
       case 'dark':
-        body.classList.add('theme-dark');
+        // 深色主题是默认的，不需要添加特殊类
         break;
       case 'auto':
-        body.classList.add('theme-auto');
         // 检测系统主题偏好
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        body.classList.add(prefersDark ? 'theme-dark' : 'theme-light');
+        if (!prefersDark) {
+          body.classList.add('light-theme');
+        }
+        // 监听系统主题变化
+        this.watchSystemTheme();
         break;
       default:
-        body.classList.add('theme-dark'); // 默认深色主题
+        // 默认深色主题，不需要添加类
     }
+    
     // 保存设置
-    await window.electronAPI.setTheme(theme);
+    if (window.electronAPI && window.electronAPI.setTheme) {
+      await window.electronAPI.setTheme(theme);
+    }
+  }
+
+  /**
+   * 监听系统主题变化
+   */
+  watchSystemTheme() {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addListener((e) => {
+      const body = document.body;
+      if (e.matches) {
+        body.classList.remove('light-theme');
+      } else {
+        body.classList.add('light-theme');
+      }
+    });
   }
 
   /**
@@ -2924,6 +3021,112 @@ class ArtiMeowApp {
         gitStatusElement.className = 'git-status disconnected';
       }
     }
+  }
+
+  /**
+   * 初始化外部链接处理
+   */
+  initExternalLinkHandling() {
+    // 为所有预览区域添加链接处理
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('external-link')) {
+        e.preventDefault();
+        const url = e.target.getAttribute('href');
+        if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+          // 使用 Electron 的 shell 打开外部浏览器
+          if (window.electronAPI && window.electronAPI.openExternal) {
+            window.electronAPI.openExternal(url).then(result => {
+              if (!result.success) {
+                console.error('Failed to open external link:', result.error);
+                // 备用方案
+                window.open(url, '_blank');
+              }
+            }).catch(error => {
+              console.error('Error opening external link:', error);
+              // 备用方案
+              window.open(url, '_blank');
+            });
+          } else {
+            // 备用方案
+            window.open(url, '_blank');
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * 初始化章节搜索功能
+   */
+  initChapterSearch() {
+    const searchInput = document.getElementById('chapter-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.filterChapters(e.target.value);
+      });
+      
+      // 清空搜索按钮
+      const clearBtn = document.getElementById('chapter-search-clear');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          searchInput.value = '';
+          this.filterChapters('');
+        });
+      }
+    }
+  }
+
+  /**
+   * 根据关键词过滤章节
+   * @param {string} keyword - 搜索关键词
+   */
+  filterChapters(keyword) {
+    if (!this.currentProject || !this.currentProject.chapters) {
+      return;
+    }
+
+    const chapterItems = document.querySelectorAll('.chapter-item');
+    const searchKeyword = keyword.toLowerCase().trim();
+
+    chapterItems.forEach(item => {
+      const chapterTitle = item.querySelector('.chapter-title')?.textContent?.toLowerCase() || '';
+      const chapterFilename = item.dataset.chapter?.toLowerCase() || '';
+      
+      if (!searchKeyword || 
+          chapterTitle.includes(searchKeyword) || 
+          chapterFilename.includes(searchKeyword)) {
+        item.style.display = 'flex';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+
+    // 更新搜索状态
+    const clearBtn = document.getElementById('chapter-search-clear');
+    if (clearBtn) {
+      clearBtn.style.display = searchKeyword ? 'block' : 'none';
+    }
+  }
+
+  /**
+   * 打开角色管理对话框
+   */
+  openCharacterManagement() {
+    if (!this.currentProject) {
+      this.showError('请先打开项目');
+      return;
+    }
+
+    // 初始化角色管理器
+    if (!this.characterManager) {
+      this.characterManager = new CharacterManager(this.currentProject.path);
+    }
+
+    // 显示角色管理模态框
+    this.showModal('character-management-modal');
+    
+    // 加载角色数据
+    this.characterManager.loadData();
   }
 
   // ...existing code...

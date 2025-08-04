@@ -18,13 +18,13 @@ class ProjectManager {
      */
     async init() {
         try {
-            // 加载项目列表
-            await this.loadProjectList();
+            // 不自动加载项目列表，避免与 app.js 的最近项目系统冲突
+            // 只有在需要时才手动调用 loadProjectList()
             
             // 启动自动保存
             this.startAutoSave();
             
-            console.log('Project Manager initialized');
+            console.log('Project Manager initialized (项目列表延迟加载)');
         } catch (error) {
             console.error('Failed to initialize Project Manager:', error);
         }
@@ -317,12 +317,11 @@ class ProjectManager {
      * 更新项目列表 UI
      */
     updateProjectListUI() {
-        // 尝试多个可能的项目列表容器
-        const projectListElement = document.getElementById('project-list') || 
-                                   document.getElementById('recent-projects');
+        // 只使用专用的项目列表容器，不使用 recent-projects 容器（避免与 app.js 冲突）
+        const projectListElement = document.getElementById('project-list');
         
         if (!projectListElement) {
-            console.warn('项目列表容器不存在');
+            console.warn('项目列表容器不存在，跳过渲染（由 app.js 处理）');
             return;
         }
 
@@ -364,23 +363,63 @@ class ProjectManager {
             projectElement.innerHTML = `
                 <div class="project-info">
                     <h3>${project.metadata.title}</h3>
-                    <p class="project-description">${project.metadata.description || '暂无描述'}</p>
+                    <div class="project-description-container">
+                        <p class="project-description collapsed">${project.metadata.description || '暂无描述'}</p>
+                        <button class="description-toggle" type="button">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
                     <div class="project-meta">
                         <span class="project-date">${this.formatDate(project.metadata.lastModified)}</span>
                         <span class="project-words">${project.metadata.wordCount || 0} 字</span>
                     </div>
                 </div>
                 <div class="project-actions">
-                    <button class="btn btn-primary" onclick="projectManager.openProject('${project.path}')">
+                    <button class="btn btn-primary project-open-btn" data-project-path="${project.path}">
                         <i class="fas fa-folder-open"></i> 打开
                     </button>
-                    <button class="btn btn-danger" onclick="projectManager.confirmDeleteProject('${project.path}')">
+                    <button class="btn btn-danger project-delete-btn" data-project-path="${project.path}">
                         <i class="fas fa-trash"></i> 删除
                     </button>
                 </div>
             `;
             
-            projectListElement.appendChild(projectElement);
+            // 添加事件监听器
+            const openBtn = projectElement.querySelector('.project-open-btn');
+            const deleteBtn = projectElement.querySelector('.project-delete-btn');
+            const toggleBtn = projectElement.querySelector('.description-toggle');
+
+            if (openBtn) {
+                openBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openProject(project.path);
+                });
+            }
+
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.confirmDeleteProject(project.path);
+                });
+            }
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const description = projectElement.querySelector('.project-description');
+                    const icon = toggleBtn.querySelector('i');
+                    
+                    if (description.classList.contains('collapsed')) {
+                        description.classList.remove('collapsed');
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-up');
+                    } else {
+                        description.classList.add('collapsed');
+                        icon.classList.remove('fa-chevron-up');
+                        icon.classList.add('fa-chevron-down');
+                    }
+                });
+            }            projectListElement.appendChild(projectElement);
         });
 
         // 如果没有项目，显示空状态

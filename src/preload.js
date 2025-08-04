@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 文件操作
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
+  createDirectory: (dirPath) => ipcRenderer.invoke('create-directory', dirPath),
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
   showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
   
@@ -104,8 +105,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readTutorialFiles: () => ipcRenderer.invoke('read-tutorial-files'),
   readTutorialFile: (filename) => ipcRenderer.invoke('read-tutorial-file', filename),
   
+  // 版本信息
+  getAppVersionInfo: () => ipcRenderer.invoke('get-app-version-info'),
+  
   // 通用 IPC 调用
   invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+  
+  // Shell操作
+  shell: {
+    openExternal: (url) => ipcRenderer.invoke('shell-open-external', url)
+  },
+  
+  // 启动画面相关
+  splashReady: () => ipcRenderer.invoke('splash-ready'),
+  onSplashUpdate: (callback) => {
+    ipcRenderer.on('splash-update', (event, data) => callback(data))
+  }
 });
 
 // 暴露平台信息，供渲染进程判断

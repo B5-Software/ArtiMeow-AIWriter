@@ -98,6 +98,19 @@ class SettingsManager {
             });
         }
 
+        // 主题切换立即应用
+        const themeSelect = document.getElementById('editor-theme');
+        if (themeSelect) {
+            themeSelect.addEventListener('change', (e) => {
+                console.log('主题选择器值变更为:', e.target.value);
+                // 立即更新设置中的主题值
+                this.settings.editor = this.settings.editor || {};
+                this.settings.editor.theme = e.target.value;
+                // 立即应用主题
+                this.applyTheme();
+            });
+        }
+
         // 重置提示词按钮
         const resetPromptBtn = document.getElementById('reset-prompt-btn');
         if (resetPromptBtn) {
@@ -169,6 +182,23 @@ class SettingsManager {
         // 导出/导入设置按钮现在由 app.js 处理，避免重复绑定
 
         // 其他按钮保持原有功能
+        
+        // 刷新版本信息按钮
+        const refreshVersionBtn = document.getElementById('refresh-version-info');
+        if (refreshVersionBtn) {
+            refreshVersionBtn.addEventListener('click', () => {
+                this.loadVersionInfo();
+            });
+        }
+        
+        // GitHub链接
+        const githubLink = document.getElementById('github-link');
+        if (githubLink) {
+            githubLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.electronAPI.shell.openExternal('https://github.com/B5-Software/ArtiMeow-AIWriter');
+            });
+        }
     }
 
     /**
@@ -190,6 +220,11 @@ class SettingsManager {
         
         if (activeTab) activeTab.classList.add('active');
         if (activePanel) activePanel.classList.add('active');
+        
+        // 如果切换到关于页面，加载版本信息
+        if (tabName === 'about') {
+            this.loadVersionInfo();
+        }
     }
 
     /**
@@ -252,9 +287,18 @@ class SettingsManager {
      */
     async saveAllSettings() {
         try {
+            console.log('=== 开始保存设置 ===');
+            
             // 收集所有表单数据
             await this.collectFormSettings();
+            console.log('收集表单设置完成，当前settings:', JSON.stringify(this.settings, null, 2));
+            
             await this.saveSettings();
+            console.log('保存设置到文件完成');
+            
+            // 不在这里应用设置，避免主题被重置
+            // this.applySettings();
+            console.log('跳过应用设置，避免主题重置');
             
             if (window.appManager) {
                 window.appManager.showNotification('设置保存成功', 'success');
@@ -344,7 +388,11 @@ class SettingsManager {
         if (fontFamily) await this.set('editor.fontFamily', fontFamily);
 
         const editorTheme = document.getElementById('editor-theme')?.value;
-        if (editorTheme) await this.set('editor.theme', editorTheme);
+        console.log('收集主题设置:', editorTheme);
+        if (editorTheme !== undefined && editorTheme !== null) {
+            console.log('保存主题设置:', editorTheme);
+            await this.set('editor.theme', editorTheme);
+        }
 
         const autoSave = document.getElementById('auto-save')?.checked;
         if (autoSave !== undefined) await this.set('editor.autoSave', autoSave);
@@ -451,12 +499,39 @@ class SettingsManager {
      */
     applyTheme() {
         const theme = this.settings.editor?.theme || 'dark';
-        document.documentElement.setAttribute('data-theme', theme);
+        console.log('应用主题:', theme, '当前设置:', this.settings.editor);
         
-        // 更新主题切换按钮状态
-        const themeToggle = document.getElementById('theme-toggle');
-        if (themeToggle) {
-            themeToggle.checked = theme === 'dark';
+        // 应用主题到body类
+        const body = document.body;
+        body.classList.remove('light-theme', 'dark-theme', 'auto-theme');
+        
+        switch (theme) {
+            case 'light':
+                body.classList.add('light-theme');
+                console.log('应用浅色主题');
+                break;
+            case 'dark':
+                // 深色主题是默认的，不需要添加特殊类
+                console.log('应用深色主题');
+                break;
+            case 'auto':
+                // 检测系统主题偏好
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (!prefersDark) {
+                    body.classList.add('light-theme');
+                }
+                console.log('应用自动主题, prefersDark:', prefersDark);
+                break;
+            default:
+                // 默认深色主题
+                console.log('应用默认深色主题');
+        }
+        
+        // 更新主题选择器的值
+        const themeSelect = document.getElementById('editor-theme');
+        if (themeSelect) {
+            themeSelect.value = theme;
+            console.log('更新主题选择器值为:', theme);
         }
     }
 
@@ -608,10 +683,11 @@ class SettingsManager {
      * 切换主题
      */
     async toggleTheme() {
-        const currentTheme = this.settings.uiSettings.theme;
+        const currentTheme = this.settings.editor?.theme || 'dark';
         const newTheme = currentTheme === 'light' ? 'dark' : 'light';
         
-        await this.set('uiSettings.theme', newTheme);
+        await this.set('editor.theme', newTheme);
+        this.applyTheme();
     }
 
     /**
@@ -745,6 +821,7 @@ class SettingsManager {
      */
     updateEditorSettingsForm() {
         const settings = this.settings.editor || {};
+        console.log('更新编辑器设置表单, settings.editor:', settings);
         
         const fontSizeSlider = document.getElementById('editor-font-size');
         if (fontSizeSlider) {
@@ -757,7 +834,11 @@ class SettingsManager {
         if (fontFamilySelect) fontFamilySelect.value = settings.fontFamily || 'Georgia, serif';
         
         const editorThemeSelect = document.getElementById('editor-theme');
-        if (editorThemeSelect) editorThemeSelect.value = settings.theme || 'dark';
+        if (editorThemeSelect) {
+            const themeValue = settings.theme || 'dark';
+            console.log('设置主题选择器值为:', themeValue);
+            editorThemeSelect.value = themeValue;
+        }
         
         const autoSaveCheckbox = document.getElementById('auto-save');
         if (autoSaveCheckbox) autoSaveCheckbox.checked = settings.autoSave;
@@ -1089,6 +1170,202 @@ class SettingsManager {
                 testBtn.disabled = false;
                 testBtn.textContent = '测试连接';
             }
+        }
+    }
+    
+    /**
+     * 加载版本信息
+     */
+    async loadVersionInfo() {
+        try {
+            console.log('开始加载版本信息...');
+            
+            // 显示加载状态
+            this.setVersionInfoLoading(true);
+            
+            // 获取版本信息
+            const versionInfo = await window.electronAPI.getAppVersionInfo();
+            console.log('版本信息获取成功:', versionInfo);
+            
+            // 更新UI
+            this.updateVersionInfoUI(versionInfo);
+            
+        } catch (error) {
+            console.error('加载版本信息失败:', error);
+            this.setVersionInfoError('无法加载版本信息: ' + error.message);
+        }
+        // 注意：移除了finally块中的setVersionInfoLoading(false)，避免覆盖已设置的内容
+    }
+    
+    /**
+     * 设置版本信息加载状态
+     * @param {boolean} loading - 是否正在加载
+     */
+    setVersionInfoLoading(loading) {
+        const elements = [
+            'app-version', 'system-platform', 'system-arch', 'node-version', 'electron-version',
+            'marked-version', 'axios-version', 'highlightjs-version', 'electronstore-version',
+            'archiver-version', 'diff-version', 'extractzip-version', 'build-packaged', 'build-execpath'
+        ];
+        
+        elements.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = loading ? '加载中...' : '-';
+            }
+        });
+    }
+    
+    /**
+     * 设置版本信息错误状态
+     * @param {string} errorMessage - 错误信息
+     */
+    setVersionInfoError(errorMessage) {
+        const versionElement = document.getElementById('app-version');
+        if (versionElement) {
+            versionElement.textContent = errorMessage;
+            versionElement.style.color = 'var(--danger-color)';
+        }
+    }
+    
+    /**
+     * 更新版本信息UI
+     * @param {Object} versionInfo - 版本信息对象
+     */
+    updateVersionInfoUI(versionInfo) {
+        try {
+            console.log('开始更新版本信息UI，接收到的数据:', versionInfo);
+            
+            // 使用setTimeout确保DOM已经准备好
+            setTimeout(() => {
+                this.doUpdateVersionInfoUI(versionInfo);
+            }, 100);
+            
+        } catch (error) {
+            console.error('更新版本信息UI失败:', error);
+            this.setVersionInfoError('UI更新失败: ' + error.message);
+        }
+    }
+    
+    /**
+     * 实际执行版本信息UI更新
+     * @param {Object} versionInfo - 版本信息对象
+     */
+    doUpdateVersionInfoUI(versionInfo) {
+        try {
+            console.log('延迟执行版本信息UI更新...');
+            
+            // 应用信息
+            const appNameElement = document.getElementById('app-name');
+            const appVersionElement = document.getElementById('app-version');
+            const appDescriptionElement = document.getElementById('app-description');
+            
+            if (appNameElement) {
+                const appName = versionInfo.app?.name || 'ArtiMeow AI Writer';
+                console.log('设置应用名称:', appName);
+                appNameElement.textContent = appName;
+            }
+            
+            if (appVersionElement) {
+                const appVersion = versionInfo.app?.version || '1.1.0';
+                console.log('设置应用版本:', appVersion, '数据类型:', typeof appVersion);
+                console.log('版本元素当前内容:', appVersionElement.textContent);
+                console.log('版本元素DOM节点:', appVersionElement);
+                appVersionElement.textContent = `版本: ${appVersion}`;
+                console.log('版本元素设置后内容:', appVersionElement.textContent);
+                appVersionElement.style.color = ''; // 重置错误状态颜色
+                
+                // 强制刷新
+                appVersionElement.style.display = 'none';
+                appVersionElement.offsetHeight; // 触发重排
+                appVersionElement.style.display = '';
+            } else {
+                console.error('找不到app-version元素');
+            }
+            
+            if (appDescriptionElement) {
+                const appDescription = versionInfo.app?.description || 'AI 集成小说写作桌面应用';
+                console.log('设置应用描述:', appDescription);
+                appDescriptionElement.textContent = appDescription;
+            }
+            
+            // 系统信息
+            const systemPlatformElement = document.getElementById('system-platform');
+            const systemArchElement = document.getElementById('system-arch');
+            const nodeVersionElement = document.getElementById('node-version');
+            const electronVersionElement = document.getElementById('electron-version');
+            
+            if (systemPlatformElement) {
+                const platform = versionInfo.system?.platform || '-';
+                console.log('设置系统平台:', platform);
+                systemPlatformElement.textContent = platform;
+            }
+            if (systemArchElement) {
+                const arch = versionInfo.system?.arch || '-';
+                console.log('设置系统架构:', arch);
+                systemArchElement.textContent = arch;
+            }
+            if (nodeVersionElement) {
+                const nodeVersion = versionInfo.system?.node || '-';
+                console.log('设置Node版本:', nodeVersion);
+                nodeVersionElement.textContent = nodeVersion;
+            }
+            if (electronVersionElement) {
+                const electronVersion = versionInfo.system?.electron || '-';
+                console.log('设置Electron版本:', electronVersion);
+                electronVersionElement.textContent = electronVersion;
+            }
+            
+            // 依赖版本
+            const deps = versionInfo.dependencies || {};
+            console.log('依赖版本信息:', deps);
+            
+            const depElements = {
+                'marked-version': deps.marked,
+                'axios-version': deps.axios,
+                'highlightjs-version': deps['highlight.js'],
+                'electronstore-version': deps['electron-store'],
+                'archiver-version': deps.archiver,
+                'diff-version': deps.diff,
+                'extractzip-version': deps['extract-zip']
+            };
+            
+            Object.entries(depElements).forEach(([id, version]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    console.log(`设置依赖 ${id}:`, version, '数据类型:', typeof version);
+                    console.log(`元素 ${id} 当前内容:`, element.textContent);
+                    element.textContent = version || 'Unknown';
+                    console.log(`元素 ${id} 设置后内容:`, element.textContent);
+                    element.style.color = version ? 'var(--primary-color)' : 'var(--text-muted)';
+                    
+                    // 强制刷新每个元素
+                    element.style.display = 'none';
+                    element.offsetHeight; // 触发重排
+                    element.style.display = '';
+                } else {
+                    console.error(`找不到元素: ${id}`);
+                }
+            });
+            
+            // 构建信息
+            const buildPackagedElement = document.getElementById('build-packaged');
+            const buildExecPathElement = document.getElementById('build-execpath');
+            
+            if (buildPackagedElement) {
+                buildPackagedElement.textContent = versionInfo.buildInfo.isPackaged ? '已打包' : '开发模式';
+                buildPackagedElement.style.color = versionInfo.buildInfo.isPackaged ? 'var(--success-color)' : 'var(--warning-color)';
+            }
+            if (buildExecPathElement) {
+                buildExecPathElement.textContent = versionInfo.buildInfo.execPath || '-';
+                buildExecPathElement.title = versionInfo.buildInfo.execPath || '';
+            }
+            
+            console.log('版本信息UI更新完成');
+            
+        } catch (error) {
+            console.error('延迟更新版本信息UI失败:', error);
+            this.setVersionInfoError('UI更新失败: ' + error.message);
         }
     }
 }

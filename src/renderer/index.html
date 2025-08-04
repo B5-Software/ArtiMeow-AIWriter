@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/editor.css">
     <link rel="stylesheet" href="css/animations.css">
     <link rel="stylesheet" href="css/tutorial.css">
+    <link rel="stylesheet" href="css/character.css">
 </head>
 <body>
     <!-- 自定义窗口控制按钮 -->
@@ -29,57 +30,8 @@
         </div>
     </div>
 
-    <!-- 加载屏幕 -->
-    <div id="loading-screen" class="loading-screen">
-        <div class="loading-container">
-            <div class="loading-logo">
-                <h1 class="app-name">ArtiMeow</h1>
-                <p class="app-subtitle">AI Writer</p>
-                <div class="version-info">v1.0.0 - Made by B5-Software</div>
-            </div>
-            <div class="loading-progress-container">
-                <div class="loading-progress">
-                    <div class="progress-bar"></div>
-                </div>
-                <div class="loading-status" id="loading-status">正在初始化...</div>
-            </div>
-            <div class="loading-logs" id="loading-logs">
-                <div class="log-item">初始化应用</div>
-                <div class="log-item">加载设置</div>
-                <div class="log-item">初始化事件监听器</div>
-                <div class="log-item">加载项目列表</div>
-                <div class="log-item">应用设置</div>
-                <div class="log-item">启动完成</div>
-            </div>
-        </div>
-    </div>
-
     <!-- 主界面 -->
-    <div id="app" class="app hidden">
-        <!-- 标题栏 -->
-        <div class="title-bar">
-            <div class="title-bar-left">
-                <div class="app-icon">
-                    <i class="fas fa-cat"></i>
-                </div>
-                <div class="app-title">ArtiMeow</div>
-            </div>
-            <div class="title-bar-center">
-                <div id="current-project-name" class="current-project">未选择项目</div>
-            </div>
-            <div class="title-bar-right">
-                <button id="minimize-btn" class="title-btn">
-                    <i class="fas fa-minus"></i>
-                </button>
-                <button id="maximize-btn" class="title-btn">
-                    <i class="fas fa-expand"></i>
-                </button>
-                <button id="close-btn" class="title-btn close">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
-
+    <div id="app" class="app">
         <!-- 主内容区域 -->
         <div class="main-content">
             <!-- 侧边栏 -->
@@ -107,6 +59,13 @@
 
                 <div class="sidebar-section">
                     <h4>章节管理</h4>
+                    <div class="chapter-search-container">
+                        <input type="text" id="chapter-search-input" placeholder="搜索章节..." class="chapter-search-input">
+                        <i class="fas fa-search chapter-search-icon"></i>
+                        <button id="chapter-search-clear" class="chapter-search-clear" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                     <div id="chapters-list" class="chapters-list">
                         <!-- 动态加载 -->
                     </div>
@@ -374,6 +333,7 @@
                     <div class="settings-tab" data-tab="editor">编辑器</div>
                     <div class="settings-tab" data-tab="git">Git</div>
                     <div class="settings-tab" data-tab="general">通用</div>
+                    <div class="settings-tab" data-tab="about">关于</div>
                 </div>
                 <div class="settings-content">
                     <!-- AI 设置 -->
@@ -565,6 +525,102 @@
                         <div class="form-group">
                             <button type="button" id="create-manual-backup" class="btn-primary btn-sm">立即创建备份</button>
                             <button type="button" id="open-backup-folder" class="btn-secondary btn-sm">打开备份文件夹</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 关于 -->
+                    <div id="about-settings" class="settings-panel">
+                        <h4>关于 ArtiMeow AI Writer</h4>
+                        <div class="about-content">
+                            <div class="app-info">
+                                <div class="app-icon">
+                                    <img src="../icon/icon.ico" alt="ArtiMeow AI Writer" class="app-icon-img">
+                                </div>
+                                <h3 id="app-name">ArtiMeow AI Writer</h3>
+                                <p id="app-version">版本: 加载中...</p>
+                                <p id="app-description">AI 集成小说写作桌面应用</p>
+                            </div>
+                            
+                            <div class="version-info">
+                                <h5>系统信息</h5>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="info-label">平台:</span>
+                                        <span id="system-platform">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">架构:</span>
+                                        <span id="system-arch">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Node.js:</span>
+                                        <span id="node-version">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Electron:</span>
+                                        <span id="electron-version">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="dependencies-info">
+                                <h5>核心依赖</h5>
+                                <div class="deps-grid">
+                                    <div class="dep-item">
+                                        <span class="dep-name">marked</span>
+                                        <span class="dep-version" id="marked-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">axios</span>
+                                        <span class="dep-version" id="axios-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">highlight.js</span>
+                                        <span class="dep-version" id="highlightjs-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">electron-store</span>
+                                        <span class="dep-version" id="electronstore-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">archiver</span>
+                                        <span class="dep-version" id="archiver-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">diff</span>
+                                        <span class="dep-version" id="diff-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">extract-zip</span>
+                                        <span class="dep-version" id="extractzip-version">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="build-info">
+                                <h5>构建信息</h5>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="info-label">打包状态:</span>
+                                        <span id="build-packaged">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">执行路径:</span>
+                                        <span id="build-execpath" class="path-text">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="footer-info">
+                                <p><strong>开发者:</strong> B5-Software</p>
+                                <p><strong>GitHub:</strong> <a href="#" id="github-link">B5-Software/ArtiMeow-AIWriter</a></p>
+                                <p><strong>许可证:</strong> B5-Software Free and Open Knowledge Public License Version 1.0-Permissive</p>
+                                <div class="refresh-version">
+                                    <button type="button" id="refresh-version-info" class="btn-secondary btn-sm">
+                                        <i class="fas fa-sync-alt"></i> 刷新版本信息
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -967,6 +1023,97 @@
         </div>
     </div>
 
+    <!-- 角色和设定管理模态框 -->
+    <div id="character-management-modal" class="modal character-modal">
+        <div class="modal-content character-modal-content">
+            <div class="modal-header">
+                <h3>角色和设定管理</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body character-modal-body">
+                <div class="character-container">
+                    <div class="character-sidebar">
+                        <div class="character-tabs">
+                            <div class="character-tab active" data-tab="characters">
+                                <i class="fas fa-users"></i> 角色管理
+                            </div>
+                            <div class="character-tab" data-tab="settings">
+                                <i class="fas fa-cog"></i> 世界设定
+                            </div>
+                        </div>
+                        
+                        <!-- 角色列表 -->
+                        <div class="character-tab-content active" id="characters-content">
+                            <div class="character-list-header">
+                                <button id="add-character-btn" class="btn-primary btn-sm">
+                                    <i class="fas fa-plus"></i> 新建角色
+                                </button>
+                            </div>
+                            <div class="character-list" id="character-list">
+                                <!-- 动态加载角色列表 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 设定列表 -->
+                        <div class="character-tab-content" id="settings-content">
+                            <div class="setting-list-header">
+                                <button id="add-setting-btn" class="btn-primary btn-sm">
+                                    <i class="fas fa-plus"></i> 新建设定
+                                </button>
+                            </div>
+                            <div class="setting-list" id="setting-list">
+                                <!-- 动态加载设定列表 -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="character-editor">
+                        <div class="character-editor-header">
+                            <h4 id="character-editor-title">选择一个角色或设定进行编辑</h4>
+                            <div class="character-editor-actions">
+                                <button id="save-character-btn" class="btn-primary btn-sm" style="display: none;">
+                                    <i class="fas fa-save"></i> 保存
+                                </button>
+                                <button id="delete-character-btn" class="btn-danger btn-sm" style="display: none;">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </div>
+                        </div>
+                        <div class="character-editor-content">
+                            <div id="character-form" style="display: none;">
+                                <div class="form-group">
+                                    <label for="character-name">角色名称</label>
+                                    <input type="text" id="character-name" class="form-control" placeholder="输入角色名称">
+                                </div>
+                                <div class="form-group">
+                                    <label for="character-bio">角色描述</label>
+                                    <textarea id="character-bio" class="form-control" rows="12" placeholder="详细描述角色的外貌、性格、背景等..."></textarea>
+                                </div>
+                            </div>
+                            <div id="setting-form" style="display: none;">
+                                <div class="form-group">
+                                    <label for="setting-name">设定名称</label>
+                                    <input type="text" id="setting-name" class="form-control" placeholder="输入设定名称">
+                                </div>
+                                <div class="form-group">
+                                    <label for="setting-content">设定内容</label>
+                                    <textarea id="setting-content" class="form-control" rows="12" placeholder="详细描述世界观、规则、背景等..."></textarea>
+                                </div>
+                            </div>
+                            <div id="character-editor-empty" class="character-editor-empty">
+                                <i class="fas fa-user-plus"></i>
+                                <p>选择左侧的角色或设定进行编辑</p>
+                                <p class="text-muted">你也可以创建新的角色或世界设定</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 加载所有 JavaScript 文件 -->
     <script src="../../node_modules/marked/lib/marked.umd.js"></script>
     
@@ -994,6 +1141,7 @@
     <script src="js/git-enhanced.js"></script>
     <script src="js/markdown-enhanced.js"></script>
     <script src="js/tutorial.js"></script>
+    <script src="js/character.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
