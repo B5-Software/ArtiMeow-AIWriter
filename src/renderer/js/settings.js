@@ -103,7 +103,10 @@ class SettingsManager {
         if (themeSelect) {
             themeSelect.addEventListener('change', (e) => {
                 console.log('主题选择器值变更为:', e.target.value);
-                // 立即更新设置中的主题值
+                // 立即更新设置中的主题值（使用 general.theme）
+                this.settings.general = this.settings.general || {};
+                this.settings.general.theme = e.target.value;
+                // 向后兼容：也更新 editor.theme
                 this.settings.editor = this.settings.editor || {};
                 this.settings.editor.theme = e.target.value;
                 // 立即应用主题
@@ -391,6 +394,9 @@ class SettingsManager {
         console.log('收集主题设置:', editorTheme);
         if (editorTheme !== undefined && editorTheme !== null) {
             console.log('保存主题设置:', editorTheme);
+            // 保存到 general.theme（新位置）
+            await this.set('general.theme', editorTheme);
+            // 向后兼容：也保存到 editor.theme
             await this.set('editor.theme', editorTheme);
         }
 
@@ -498,8 +504,9 @@ class SettingsManager {
      * 应用主题设置
      */
     applyTheme() {
-        const theme = this.settings.editor?.theme || 'dark';
-        console.log('应用主题:', theme, '当前设置:', this.settings.editor);
+        // 优先使用 general.theme，向后兼容 editor.theme
+        const theme = this.settings.general?.theme || this.settings.editor?.theme || 'dark';
+        console.log('应用主题:', theme, '当前设置:', this.settings.general);
         
         // 应用主题到body类
         const body = document.body;
@@ -683,9 +690,12 @@ class SettingsManager {
      * 切换主题
      */
     async toggleTheme() {
-        const currentTheme = this.settings.editor?.theme || 'dark';
+        const currentTheme = this.settings.general?.theme || this.settings.editor?.theme || 'dark';
         const newTheme = currentTheme === 'light' ? 'dark' : 'light';
         
+        // 保存到 general.theme（新位置）
+        await this.set('general.theme', newTheme);
+        // 向后兼容：也保存到 editor.theme
         await this.set('editor.theme', newTheme);
         this.applyTheme();
     }

@@ -55,10 +55,11 @@ class ArtiMeowApp {
       
       this.updateLoadingStatus('正在加载设置...', 1);
       
-      // 初始化主题
-      await this.initTheme();
       // 加载设置
       await this.loadSettings();
+      
+      // 初始化主题（基于加载的设置）
+      await this.initTheme();
       
       this.updateLoadingStatus('正在初始化事件监听器...', 2);
       // 初始化事件监听器
@@ -496,6 +497,7 @@ class ArtiMeowApp {
     const themeSelect = document.getElementById('editor-theme');
     if (themeSelect) {
       themeSelect.addEventListener('change', (e) => {
+        console.log('用户在设置中选择主题:', e.target.value);
         this.applyTheme(e.target.value);
       });
     }
@@ -1195,7 +1197,8 @@ class ArtiMeowApp {
 
     const editorTheme = document.getElementById('editor-theme');
     if (editorTheme) {
-      editorTheme.value = this.settings.editor?.theme || 'dark';
+      // 应用主题设置（使用general.theme而不是editor.theme）
+      editorTheme.value = this.settings.general?.theme || this.settings.editor?.theme || 'dark';
     }
 
     const autoSave = document.getElementById('auto-save');
@@ -1318,7 +1321,10 @@ class ArtiMeowApp {
     }
 
     // 应用主题
-    if (this.settings.editor?.theme) {
+    if (this.settings.general?.theme) {
+      this.applyTheme(this.settings.general.theme);
+    } else if (this.settings.editor?.theme) {
+      // 向后兼容：如果general.theme不存在，尝试使用editor.theme
       this.applyTheme(this.settings.editor.theme);
     }
     
@@ -2479,7 +2485,6 @@ class ArtiMeowApp {
         fontSize: parseInt(document.getElementById('editor-font-size')?.value) || 16,
         fontFamily: document.getElementById('editor-font-family')?.value || 'Georgia, serif',
         lineHeight: parseFloat(document.getElementById('editor-line-height')?.value) || 1.5,
-        theme: document.getElementById('editor-theme')?.value || 'dark',
         autoSave: document.getElementById('auto-save')?.checked || false,
         autoSaveInterval: parseInt(document.getElementById('auto-save-interval')?.value) || 30
       },
@@ -2491,7 +2496,8 @@ class ArtiMeowApp {
         projectsDir: document.getElementById('projects-dir')?.value || '',
         backupEnabled: document.getElementById('backup-enabled')?.checked || false,
         backupInterval: parseInt(document.getElementById('backup-interval')?.value) || 24,
-        backupKeepCount: parseInt(document.getElementById('backup-keep-count')?.value) || 10
+        backupKeepCount: parseInt(document.getElementById('backup-keep-count')?.value) || 10,
+        theme: document.getElementById('editor-theme')?.value || 'dark' // 应用主题设置
       }
     };
     // 收集各引擎设置
@@ -2526,13 +2532,19 @@ class ArtiMeowApp {
       const settings = this.collectSettingsFromModal();
       // 调试信息
       console.log('准备保存设置:', JSON.stringify(settings, null, 2));
+      console.log('设置中的主题:', settings.general.theme);
+      
       // 保存设置
       const result = await window.electronAPI.saveSettings(settings);
       console.log('设置保存结果:', result);
+      
       // 更新本地设置
       this.settings = settings;
+      console.log('已更新本地设置，主题为:', this.settings.general.theme);
+      
       // 应用设置
       this.applySettings();
+      
       // 如果启用了自动保存，重新初始化
       if (settings.editor.autoSave) {
         this.initAutoSave();
@@ -2675,35 +2687,62 @@ class ArtiMeowApp {
    * @param {string} theme - 主题名称
    */
   async applyTheme(theme) {
+    console.log('=== 应用主题开始 ===');
+    console.log('要应用的主题:', theme);
+    
     const body = document.body;
     // 移除所有主题类
     body.classList.remove('light-theme', 'dark-theme', 'auto-theme');
+    console.log('已清除现有主题类');
     
     // 应用新主题
     switch (theme) {
       case 'light':
         body.classList.add('light-theme');
+        console.log('已应用浅色主题');
         break;
       case 'dark':
         // 深色主题是默认的，不需要添加特殊类
+        console.log('已应用深色主题');
         break;
       case 'auto':
         // 检测系统主题偏好
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        console.log('系统偏好深色模式:', prefersDark);
         if (!prefersDark) {
           body.classList.add('light-theme');
         }
+        console.log('已应用自动主题');
         // 监听系统主题变化
         this.watchSystemTheme();
         break;
       default:
         // 默认深色主题，不需要添加类
+        console.log('应用默认深色主题');
     }
     
-    // 保存设置
-    if (window.electronAPI && window.electronAPI.setTheme) {
-      await window.electronAPI.setTheme(theme);
+    console.log('当前body类列表:', body.classList.toString());
+    
+    // 保存设置到内存
+    if (!this.settings) {
+      this.settings = {};
     }
+    if (!this.settings.general) {
+      this.settings.general = {};
+    }
+    this.settings.general.theme = theme;
+    console.log('已更新内存中的主题设置:', this.settings.general.theme);
+    
+    // 保存设置到文件
+    if (window.electronAPI && window.electronAPI.setTheme) {
+      try {
+        const result = await window.electronAPI.setTheme(theme);
+        console.log('主题保存到文件结果:', result);
+      } catch (error) {
+        console.error('保存主题到文件失败:', error);
+      }
+    }
+    console.log('=== 应用主题完成 ===');
   }
 
   /**
@@ -2726,10 +2765,45 @@ class ArtiMeowApp {
    */
   async initTheme() {
     try {
-      const result = await window.electronAPI.getTheme();
-      if (result.success) {
-        await this.applyTheme(result.theme);
+      console.log('=== 主题初始化开始 ===');
+      console.log('当前设置对象:', this.settings);
+      
+      // 检查是否已经有 settingsManager，如果有则由它处理主题
+      if (window.settingsManager) {
+        console.log('使用 settingsManager 处理主题');
+        window.settingsManager.applyTheme();
+        console.log('=== 主题初始化完成（由 settingsManager 处理）===');
+        return;
       }
+      
+      // 否则使用原有逻辑
+      let theme = 'dark'; // 默认主题
+      
+      // 如果设置已加载，使用设置中的主题
+      if (this.settings && this.settings.general && this.settings.general.theme) {
+        theme = this.settings.general.theme;
+        console.log('从 general.theme 加载主题:', theme);
+      } else if (this.settings && this.settings.editor && this.settings.editor.theme) {
+        theme = this.settings.editor.theme;
+        console.log('从 editor.theme 加载主题:', theme);
+      } else {
+        // 否则从文件获取
+        try {
+          const result = await window.electronAPI.getTheme();
+          if (result.success) {
+            theme = result.theme;
+            console.log('从配置文件加载主题:', theme);
+          } else {
+            console.log('配置文件中没有主题设置，使用默认:', theme);
+          }
+        } catch (fileError) {
+          console.log('读取配置文件失败，使用默认主题:', theme, fileError);
+        }
+      }
+      
+      console.log('最终应用主题:', theme);
+      await this.applyTheme(theme);
+      console.log('=== 主题初始化完成 ===');
     } catch (error) {
       console.error('Initialize theme error:', error);
       await this.applyTheme('dark'); // 默认深色主题
@@ -3027,12 +3101,19 @@ class ArtiMeowApp {
    * 初始化外部链接处理
    */
   initExternalLinkHandling() {
-    // 为所有预览区域添加链接处理
+    // 拦截所有链接点击，强制在外部浏览器中打开
     document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('external-link')) {
-        e.preventDefault();
-        const url = e.target.getAttribute('href');
-        if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      // 检查是否是链接元素
+      const link = e.target.closest('a');
+      if (link && link.href) {
+        e.preventDefault(); // 阻止默认跳转行为
+        
+        const url = link.href;
+        console.log('拦截链接点击:', url);
+        
+        // 检查是否是外部链接
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          console.log('在外部浏览器中打开链接:', url);
           // 使用 Electron 的 shell 打开外部浏览器
           if (window.electronAPI && window.electronAPI.openExternal) {
             window.electronAPI.openExternal(url).then(result => {
@@ -3050,9 +3131,19 @@ class ArtiMeowApp {
             // 备用方案
             window.open(url, '_blank');
           }
+        } else if (url.startsWith('file://') || url.includes('/') || url.includes('\\')) {
+          // 对于本地文件链接，也在外部打开
+          console.log('在外部程序中打开文件链接:', url);
+          if (window.electronAPI && window.electronAPI.openExternal) {
+            window.electronAPI.openExternal(url).catch(error => {
+              console.error('Error opening file link:', error);
+            });
+          }
+        } else {
+          console.log('忽略非外部链接:', url);
         }
       }
-    });
+    }, true); // 使用捕获模式确保在其他事件处理器之前拦截
   }
 
   /**
