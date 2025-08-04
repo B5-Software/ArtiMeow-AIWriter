@@ -3059,7 +3059,7 @@ class ArtiMeowApp {
    * 初始化章节搜索功能
    */
   initChapterSearch() {
-    const searchInput = document.getElementById('chapter-search');
+    const searchInput = document.getElementById('chapter-search-input');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         this.filterChapters(e.target.value);
@@ -3101,10 +3101,17 @@ class ArtiMeowApp {
       }
     });
 
-    // 更新搜索状态
+    // 更新搜索状态 - 显示清除按钮时隐藏搜索图标
     const clearBtn = document.getElementById('chapter-search-clear');
-    if (clearBtn) {
-      clearBtn.style.display = searchKeyword ? 'block' : 'none';
+    const searchIcon = document.querySelector('.chapter-search-icon');
+    if (clearBtn && searchIcon) {
+      if (searchKeyword) {
+        clearBtn.style.display = 'block';
+        searchIcon.style.display = 'none';
+      } else {
+        clearBtn.style.display = 'none';
+        searchIcon.style.display = 'block';
+      }
     }
   }
 
