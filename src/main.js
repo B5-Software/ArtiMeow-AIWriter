@@ -3119,6 +3119,52 @@ function setupWebServerDataAccess(server) {
     }
   }
 
+  // 重命名章节
+  dataAccessor.renameChapter = async function(projectPath, chapterId, newTitle) {
+    try {
+      const chapterDir = path.join(projectPath, 'chapters', chapterId)
+      
+      // 更新章节元数据
+      const metadataPath = path.join(chapterDir, 'metadata.json')
+      const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'))
+      
+      // 更新标题和修改时间
+      metadata.title = newTitle
+      metadata.lastModified = new Date().toISOString()
+      
+      // 保存元数据
+      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8')
+      
+      // 更新项目文件中的章节列表
+      const projectFilePath = path.join(projectPath, 'project.json')
+      const projectData = JSON.parse(await fs.readFile(projectFilePath, 'utf-8'))
+      
+      // 确保 chapters 是数组
+      if (!Array.isArray(projectData.chapters)) {
+        projectData.chapters = []
+      }
+      
+      // 查找并更新章节
+      const chapterIndex = projectData.chapters.findIndex(ch => ch && ch.id === chapterId)
+      if (chapterIndex >= 0) {
+        projectData.chapters[chapterIndex].title = newTitle
+        projectData.chapters[chapterIndex].lastModified = new Date().toISOString()
+      }
+      
+      // 更新项目修改时间
+      projectData.updatedAt = new Date().toISOString()
+      
+      // 保存项目文件
+      await fs.writeFile(projectFilePath, JSON.stringify(projectData, null, 2), 'utf-8')
+      
+      logger.info(`Web服务器重命名章节成功: ${projectPath}/${chapterId} -> ${newTitle}`)
+      return { success: true }
+    } catch (error) {
+      logger.error('Web服务器重命名章节失败:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
   // 获取设置
   dataAccessor.getSettings = async function() {
     try {
@@ -3572,6 +3618,136 @@ function setupWebServerDataAccess(server) {
     } catch (error) {
       logger.error('Web服务器获取同步数据失败:', error)
       throw error
+    }
+  }
+
+  // AI 调用
+  dataAccessor.callAI = async function(options) {
+    try {
+      const settings = store.get('settings', defaultSettings)
+      const { provider, model, prompt, systemPrompt, context, temperature, maxTokens } = options
+      
+      console.log('Web服务器 AI call options:', options)
+      
+      const engine = settings.ai.engines[provider] || settings.ai.engines[settings.ai.selectedEngine]
+      
+      let response
+      
+      // 构建消息数组，严格按照OpenAI官方文档格式
+      const messages = []
+      
+      // 添加系统提示（如果存在）
+      if (systemPrompt && systemPrompt.trim()) {
+        messages.push({
+          role: 'system',
+          content: systemPrompt.trim()
+        })
+      }
+      
+      // 构建用户消息
+      let userContent = prompt
+      if (context && context.trim()) {
+        userContent = `${prompt}\n\n需要处理的文本：\n${context.trim()}`
+      }
+      
+      messages.push({
+        role: 'user',
+        content: userContent
+      })
+      
+      console.log('Web服务器 Constructed messages:', JSON.stringify(messages, null, 2))
+      
+      // 构建请求参数
+      const requestOptions = {
+        messages: messages
+      }
+      
+      // 添加可选参数（只有在明确设置时才包含）
+      if (temperature !== undefined) {
+        requestOptions.temperature = temperature
+      } else if (settings.ai.temperature !== undefined) {
+        requestOptions.temperature = settings.ai.temperature
+      }
+      
+      if (maxTokens !== undefined) {
+        requestOptions.maxTokens = maxTokens
+      } else if (settings.ai.maxTokens !== undefined) {
+        requestOptions.maxTokens = settings.ai.maxTokens
+      }
+      
+      // 对于llama.cpp，构建单一prompt
+      if (provider === 'llamacpp') {
+        let llamaPrompt = ''
+        if (systemPrompt && systemPrompt.trim()) {
+          llamaPrompt += systemPrompt.trim() + '\n\n'
+        }
+        llamaPrompt += userContent
+        requestOptions.prompt = llamaPrompt
+      }
+      
+      console.log('Web服务器 Final request options:', JSON.stringify(requestOptions, null, 2))
+      
+      switch (provider) {
+        case 'openai':
+          response = await callOpenAI(engine, requestOptions)
+          break
+        case 'ollama':
+          response = await callOllama(engine, requestOptions)
+          break
+        case 'llamacpp':
+          response = await callLlamaCpp(engine, requestOptions)
+          break
+        case 'custom':
+          response = await callCustomAI(engine, requestOptions)
+          break
+        default:
+          throw new Error(`未知的 AI 提供商: ${provider}`)
+      }
+      
+      logger.info(`Web服务器AI调用成功: ${provider}`)
+      return { success: true, content: response }
+    } catch (error) {
+      logger.error('Web服务器AI调用失败:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  // AI 连接测试
+  dataAccessor.testAIConnection = async function(engine, settings) {
+    try {
+      console.log('Web服务器测试AI连接:', engine, settings)
+      
+      const testOptions = {
+        messages: [{ role: 'user', content: 'Hello' }],
+        temperature: 0.7,
+        maxTokens: 10
+      }
+      
+      let response
+      
+      switch (engine) {
+        case 'openai':
+          response = await callOpenAI(settings, testOptions)
+          break
+        case 'ollama':
+          response = await callOllama(settings, testOptions)
+          break
+        case 'llamacpp':
+          testOptions.prompt = 'Hello'
+          response = await callLlamaCpp(settings, testOptions)
+          break
+        case 'custom':
+          response = await callCustomAI(settings, testOptions)
+          break
+        default:
+          throw new Error(`未知的 AI 引擎: ${engine}`)
+      }
+      
+      logger.info(`Web服务器AI连接测试成功: ${engine}`)
+      return { success: true, response: response }
+    } catch (error) {
+      logger.error('Web服务器AI连接测试失败:', error)
+      return { success: false, error: error.message }
     }
   }
 

@@ -63,6 +63,7 @@ class ArtiMeowWebServer {
         this.getProject = accessor.getProject?.bind(accessor);
         this.getChapterContent = accessor.getChapterContent?.bind(accessor);
         this.saveChapterContent = accessor.saveChapterContent?.bind(accessor);
+        this.renameChapter = accessor.renameChapter?.bind(accessor);
         this.getSettings = accessor.getSettings?.bind(accessor);
         this.saveSettings = accessor.saveSettings?.bind(accessor);
         this.getRecentProjects = accessor.getRecentProjects?.bind(accessor);
@@ -262,6 +263,30 @@ class ArtiMeowWebServer {
             } catch (error) {
                 console.error('Save chapter error:', error);
                 res.status(500).json({ error: '保存章节失败' });
+            }
+        });
+
+        // 重命名章节
+        this.app.post('/api/projects/chapter/rename', async (req, res) => {
+            try {
+                const { projectPath, chapterId, newTitle } = req.body;
+                
+                if (!this.renameChapter) {
+                    console.error('renameChapter方法未绑定');
+                    return res.status(500).json({ error: 'renameChapter方法未绑定' });
+                }
+                
+                const result = await this.renameChapter(projectPath, chapterId, newTitle);
+                console.log('章节重命名结果:', result);
+                
+                if (result && result.success) {
+                    res.json({ success: true, message: '章节重命名成功' });
+                } else {
+                    res.status(500).json({ error: result?.error || '章节重命名失败' });
+                }
+            } catch (error) {
+                console.error('Rename chapter error:', error);
+                res.status(500).json({ error: '重命名章节失败', details: error.message });
             }
         });
 
