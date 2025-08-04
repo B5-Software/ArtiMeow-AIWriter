@@ -7,11 +7,16 @@ const Store = require('electron-store')
 const axios = require('axios')
 const archiver = require('archiver')
 const extractZip = require('extract-zip')
+const os = require('os')
+
+// Web服务器
+const ArtiMeowWebServer = require('./webserver/server')
 
 const store = new Store.default ? new Store.default() : new Store()
 let aiProcess = null
 let mainWindow = null
 let splashWindow = null
+let webServer = null  // Web服务器实例
 
 // 环境变量
 const isDev = process.env.NODE_ENV === 'development'
@@ -2423,7 +2428,13 @@ ipcMain.handle('get-app-version-info', async () => {
       electronStoreVersion,
       archiverVersion,
       diffVersion,
-      extractZipVersion
+      extractZipVersion,
+      // Web服务器依赖
+      expressVersion,
+      socketIoVersion,
+      bcryptVersion,
+      jsonwebtokenVersion,
+      corsVersion
     ] = await Promise.all([
       getDependencyVersion('marked'),
       getDependencyVersion('axios'),
@@ -2431,7 +2442,13 @@ ipcMain.handle('get-app-version-info', async () => {
       getDependencyVersion('electron-store'),
       getDependencyVersion('archiver'),
       getDependencyVersion('diff'),
-      getDependencyVersion('extract-zip')
+      getDependencyVersion('extract-zip'),
+      // Web服务器依赖
+      getDependencyVersion('express'),
+      getDependencyVersion('socket.io'),
+      getDependencyVersion('bcrypt'),
+      getDependencyVersion('jsonwebtoken'),
+      getDependencyVersion('cors')
     ])
 
     const versionInfo = {
@@ -2453,7 +2470,13 @@ ipcMain.handle('get-app-version-info', async () => {
         'electron-store': electronStoreVersion,
         'archiver': archiverVersion,
         'diff': diffVersion,
-        'extract-zip': extractZipVersion
+        'extract-zip': extractZipVersion,
+        // Web服务器依赖
+        'express': expressVersion,
+        'socket.io': socketIoVersion,
+        'bcrypt': bcryptVersion,
+        'jsonwebtoken': jsonwebtokenVersion,
+        'cors': corsVersion
       },
       buildInfo: {
         isPackaged: isPackaged,
@@ -2487,7 +2510,13 @@ ipcMain.handle('get-app-version-info', async () => {
         'electron-store': 'Unknown',
         'archiver': 'Unknown',
         'diff': 'Unknown',
-        'extract-zip': 'Unknown'
+        'extract-zip': 'Unknown',
+        // Web服务器依赖
+        'express': 'Unknown',
+        'socket.io': 'Unknown',
+        'bcrypt': 'Unknown',
+        'jsonwebtoken': 'Unknown',
+        'cors': 'Unknown'
       },
       buildInfo: {
         isPackaged: isPackaged,
@@ -2507,5 +2536,400 @@ ipcMain.handle('shell-open-external', async (event, url) => {
   } catch (error) {
     logger.error('打开外部链接失败:', error)
     return { success: false, error: error.message }
+  }
+})
+
+// ========================================
+// Web服务器相关处理器
+// ========================================
+
+// 启动Web服务器
+ipcMain.handle('start-web-server', async (event, config) => {
+  try {
+    if (!webServer) {
+      webServer = new ArtiMeowWebServer()
+    }
+
+    // 为Web服务器设置数据访问方法
+    setupWebServerDataAccess(webServer)
+
+    const result = await webServer.start(config.port, config.password)
+    logger.info('Web服务器启动成功:', result)
+    
+    if (result.success) {
+      return { 
+        success: true, 
+        info: {
+          port: result.port,
+          ips: result.ips,
+          connectedClients: 0,
+          versions: webServer.getServerVersions()
+        }
+      }
+    } else {
+      return { success: false, error: result.error }
+    }
+  } catch (error) {
+    logger.error('启动Web服务器失败:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// 停止Web服务器
+ipcMain.handle('stop-web-server', async (event) => {
+  try {
+    if (webServer) {
+      await webServer.stop()
+      webServer = null
+    }
+    
+    logger.info('Web服务器已停止')
+    return { success: true }
+  } catch (error) {
+    logger.error('停止Web服务器失败:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// 获取Web服务器状态
+ipcMain.handle('get-web-server-status', async (event) => {
+  try {
+    if (webServer) {
+      return { success: true, status: webServer.getStatus() }
+    } else {
+      return { 
+        success: true, 
+        status: { 
+          isRunning: false, 
+          port: 0, 
+          ips: getLocalIPs(), 
+          connectedClients: 0 
+        } 
+      }
+    }
+  } catch (error) {
+    logger.error('获取Web服务器状态失败:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// 获取本地IP地址
+ipcMain.handle('get-local-ips', async (event) => {
+  try {
+    const ips = getLocalIPs()
+    return { success: true, ips }
+  } catch (error) {
+    logger.error('获取本地IP失败:', error)
+    return { success: false, error: error.message, ips: { ipv4: [], ipv6: [] } }
+  }
+})
+
+/**
+ * 获取本地IP地址
+ */
+function getLocalIPs() {
+  const interfaces = os.networkInterfaces()
+  const ips = { ipv4: [], ipv6: [] }
+
+  Object.keys(interfaces).forEach(name => {
+    interfaces[name].forEach(iface => {
+      if (!iface.internal) {
+        if (iface.family === 'IPv4') {
+          ips.ipv4.push(iface.address)
+        } else if (iface.family === 'IPv6') {
+          ips.ipv6.push(iface.address)
+        }
+      }
+    })
+  })
+
+  return ips
+}
+
+/**
+ * 为Web服务器设置数据访问方法
+ */
+function setupWebServerDataAccess(server) {
+  // 创建数据访问器对象
+  const dataAccessor = {};
+
+  // 获取项目列表
+  dataAccessor.getProjects = async function() {
+    try {
+      const settings = store.get('settings', {})
+      const recentProjects = settings.projectSettings?.recentProjects || []
+      
+      const projects = []
+      for (const projectPath of recentProjects) {
+        try {
+          const configPath = path.join(projectPath, 'project.json')
+          const configData = await fs.readFile(configPath, 'utf8')
+          const config = JSON.parse(configData)
+          
+          projects.push({
+            id: path.basename(projectPath),
+            name: config.name || path.basename(projectPath),
+            description: config.description || '',
+            path: projectPath,
+            lastModified: config.lastModified || Date.now()
+          })
+        } catch (error) {
+          // 跳过损坏的项目
+          continue
+        }
+      }
+      
+      return projects
+    } catch (error) {
+      logger.error('Web服务器获取项目列表失败:', error)
+      return []
+    }
+  }
+
+  // 获取项目详情
+  dataAccessor.getProject = async function(projectId) {
+    try {
+      const settings = store.get('settings', {})
+      const recentProjects = settings.projectSettings?.recentProjects || []
+      
+      for (const projectPath of recentProjects) {
+        if (path.basename(projectPath) === projectId) {
+          const configPath = path.join(projectPath, 'project.json')
+          const configData = await fs.readFile(configPath, 'utf8')
+          const config = JSON.parse(configData)
+          
+          // 获取章节列表
+          const chaptersPath = path.join(projectPath, 'chapters')
+          const chapters = []
+          
+          try {
+            const chapterFiles = await fs.readdir(chaptersPath)
+            for (const file of chapterFiles) {
+              if (file.endsWith('.md')) {
+                const chapterPath = path.join(chaptersPath, file)
+                const stats = await fs.stat(chapterPath)
+                const chapterId = path.basename(file, '.md')
+                
+                chapters.push({
+                  id: chapterId,
+                  name: chapterId,
+                  lastModified: stats.mtime.getTime(),
+                  size: stats.size
+                })
+              }
+            }
+          } catch (error) {
+            // 章节目录可能不存在
+          }
+          
+          return {
+            ...config,
+            id: projectId,
+            path: projectPath,
+            chapters: chapters.sort((a, b) => a.name.localeCompare(b.name))
+          }
+        }
+      }
+      
+      throw new Error('项目未找到')
+    } catch (error) {
+      logger.error('Web服务器获取项目详情失败:', error)
+      throw error
+    }
+  }
+
+  // 获取章节内容
+  dataAccessor.getChapterContent = async function(projectId, chapterId) {
+    try {
+      const settings = store.get('settings', {})
+      const recentProjects = settings.projectSettings?.recentProjects || []
+      
+      for (const projectPath of recentProjects) {
+        if (path.basename(projectPath) === projectId) {
+          const chapterPath = path.join(projectPath, 'chapters', `${chapterId}.md`)
+          const content = await fs.readFile(chapterPath, 'utf8')
+          const stats = await fs.stat(chapterPath)
+          
+          return {
+            id: chapterId,
+            content: content,
+            lastModified: stats.mtime.getTime(),
+            size: stats.size
+          }
+        }
+      }
+      
+      throw new Error('章节未找到')
+    } catch (error) {
+      logger.error('Web服务器获取章节内容失败:', error)
+      throw error
+    }
+  }
+
+  // 保存章节内容
+  dataAccessor.saveChapterContent = async function(projectId, chapterId, content) {
+    try {
+      const settings = store.get('settings', {})
+      const recentProjects = settings.projectSettings?.recentProjects || []
+      
+      for (const projectPath of recentProjects) {
+        if (path.basename(projectPath) === projectId) {
+          const chapterPath = path.join(projectPath, 'chapters', `${chapterId}.md`)
+          await fs.writeFile(chapterPath, content, 'utf8')
+          
+          logger.info(`Web服务器保存章节成功: ${projectId}/${chapterId}`)
+          return true
+        }
+      }
+      
+      throw new Error('项目未找到')
+    } catch (error) {
+      logger.error('Web服务器保存章节内容失败:', error)
+      throw error
+    }
+  }
+
+  // 获取设置
+  dataAccessor.getSettings = async function() {
+    try {
+      return store.get('settings', {})
+    } catch (error) {
+      logger.error('Web服务器获取设置失败:', error)
+      return {}
+    }
+  }
+
+  // 保存设置
+  dataAccessor.saveSettings = async function(settings) {
+    try {
+      store.set('settings', settings)
+      logger.info('Web服务器保存设置成功')
+      return true
+    } catch (error) {
+      logger.error('Web服务器保存设置失败:', error)
+      throw error
+    }
+  }
+  
+  // 获取最近项目
+  dataAccessor.getRecentProjects = async function() {
+    try {
+      const settings = store.get('settings', {})
+      const recentProjects = settings.projectSettings?.recentProjects || []
+      
+      const projects = []
+      for (const projectPath of recentProjects) {
+        try {
+          const configPath = path.join(projectPath, 'project.json')
+          const configData = await fs.readFile(configPath, 'utf8')
+          const config = JSON.parse(configData)
+          const stats = await fs.stat(configPath)
+          
+          projects.push({
+            id: path.basename(projectPath),
+            name: config.name || path.basename(projectPath),
+            description: config.description || '',
+            path: projectPath,
+            lastModified: stats.mtime.getTime(),
+            createTime: config.createTime || stats.birthtime?.getTime() || stats.mtime.getTime()
+          })
+        } catch (error) {
+          // 跳过损坏的项目，但记录日志
+          logger.warn(`跳过损坏的项目: ${projectPath}`, error.message)
+          continue
+        }
+      }
+      
+      // 按最后修改时间排序
+      projects.sort((a, b) => b.lastModified - a.lastModified)
+      
+      return {
+        success: true,
+        projects: projects
+      }
+    } catch (error) {
+      logger.error('Web服务器获取最近项目失败:', error)
+      return {
+        success: false,
+        projects: [],
+        error: error.message
+      }
+    }
+  }
+  
+  // 获取教程文件
+  dataAccessor.getTutorialFiles = async function() {
+    try {
+      const tutorialDir = path.join(__dirname, '..', 'tutorial')
+      const files = await fs.readdir(tutorialDir)
+      
+      const tutorials = []
+      for (const file of files) {
+        if (file.endsWith('.md')) {
+          const filePath = path.join(tutorialDir, file)
+          const content = await fs.readFile(filePath, 'utf8')
+          const stats = await fs.stat(filePath)
+          
+          // 提取标题（第一行）
+          const lines = content.split('\n')
+          const title = lines[0]?.replace(/^#\s*/, '') || file.replace('.md', '')
+          
+          tutorials.push({
+            id: file.replace('.md', ''),
+            filename: file,
+            title: title,
+            content: content,
+            size: stats.size,
+            lastModified: stats.mtime.getTime()
+          })
+        }
+      }
+      
+      // 按文件名排序
+      tutorials.sort((a, b) => a.filename.localeCompare(b.filename))
+      
+      return {
+        success: true,
+        files: tutorials
+      }
+    } catch (error) {
+      logger.error('Web服务器获取教程文件失败:', error)
+      return {
+        success: false,
+        files: [],
+        error: error.message
+      }
+    }
+  }
+
+  // 获取同步数据
+  dataAccessor.getSyncData = async function() {
+    try {
+      const projects = await this.getProjects()
+      const settings = await this.getSettings()
+      
+      return {
+        projects: projects,
+        settings: settings,
+        timestamp: Date.now()
+      }
+    } catch (error) {
+      logger.error('Web服务器获取同步数据失败:', error)
+      throw error
+    }
+  }
+
+  // 设置数据访问器
+  server.setDataAccessor(dataAccessor)
+}
+
+// 应用退出时停止Web服务器
+app.on('before-quit', async (event) => {
+  if (webServer) {
+    try {
+      await webServer.stop()
+    } catch (error) {
+      logger.error('应用退出时停止Web服务器失败:', error)
+    }
   }
 })

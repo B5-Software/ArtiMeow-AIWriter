@@ -412,6 +412,17 @@ class SettingsManager {
         // 收集通用设置
         const backupEnabled = document.getElementById('backup-enabled')?.checked;
         if (backupEnabled !== undefined) await this.set('general.backupEnabled', backupEnabled);
+
+        // 收集网络设置
+        const networkEnabled = document.getElementById('network-enabled')?.checked;
+        const networkPort = parseInt(document.getElementById('network-port')?.value) || 3000;
+        const networkPassword = document.getElementById('network-password')?.value;
+        const networkAutoStart = document.getElementById('network-auto-start')?.checked;
+
+        if (networkEnabled !== undefined) await this.set('network.enabled', networkEnabled);
+        if (networkPort !== undefined) await this.set('network.port', networkPort);
+        if (networkPassword !== undefined) await this.set('network.password', networkPassword);
+        if (networkAutoStart !== undefined) await this.set('network.autoStart', networkAutoStart);
     }
 
     /**
@@ -765,6 +776,9 @@ class SettingsManager {
         
         // 更新通用设置表单
         this.updateGeneralSettingsForm();
+        
+        // 更新网络设置表单
+        this.updateNetworkSettingsForm();
     }
 
     /**
@@ -1337,7 +1351,13 @@ class SettingsManager {
                 'electronstore-version': deps['electron-store'],
                 'archiver-version': deps.archiver,
                 'diff-version': deps.diff,
-                'extractzip-version': deps['extract-zip']
+                'extractzip-version': deps['extract-zip'],
+                // Web服务器相关依赖
+                'express-version': deps.express,
+                'socket-io-version': deps['socket.io'],
+                'bcrypt-version': deps.bcrypt,
+                'jsonwebtoken-version': deps.jsonwebtoken,
+                'cors-version': deps.cors
             };
             
             Object.entries(depElements).forEach(([id, version]) => {
@@ -1376,6 +1396,75 @@ class SettingsManager {
         } catch (error) {
             console.error('延迟更新版本信息UI失败:', error);
             this.setVersionInfoError('UI更新失败: ' + error.message);
+        }
+    }
+
+    /**
+     * 更新网络设置表单
+     */
+    async updateNetworkSettingsForm() {
+        console.log('更新网络设置表单');
+        
+        // 更新启用状态
+        const networkEnabled = document.getElementById('network-enabled');
+        if (networkEnabled) {
+            networkEnabled.checked = this.settings.network?.enabled || false;
+        }
+
+        // 更新端口
+        const networkPort = document.getElementById('network-port');
+        if (networkPort) {
+            networkPort.value = this.settings.network?.port || 3000;
+        }
+
+        // 更新密码
+        const networkPassword = document.getElementById('network-password');
+        if (networkPassword) {
+            networkPassword.value = this.settings.network?.password || '';
+        }
+
+        // 更新自动启动
+        const networkAutoStart = document.getElementById('network-auto-start');
+        if (networkAutoStart) {
+            networkAutoStart.checked = this.settings.network?.autoStart || false;
+        }
+
+        // 更新IP地址显示
+        this.updateNetworkIPDisplay();
+    }
+
+    /**
+     * 更新网络IP地址显示
+     */
+    async updateNetworkIPDisplay() {
+        try {
+            const ips = await window.electronAPI.getLocalIPs();
+            
+            // 更新IPv4列表
+            const ipv4List = document.getElementById('ipv4-list');
+            if (ipv4List && ips.ips && ips.ips.ipv4) {
+                if (ips.ips.ipv4.length > 0) {
+                    ipv4List.innerHTML = ips.ips.ipv4.map(ip => 
+                        `<div class="ip-item">${ip}</div>`
+                    ).join('');
+                } else {
+                    ipv4List.innerHTML = '<div class="ip-item">无可用的IPv4地址</div>';
+                }
+            }
+
+            // 更新IPv6列表
+            const ipv6List = document.getElementById('ipv6-list');
+            if (ipv6List && ips.ips && ips.ips.ipv6) {
+                if (ips.ips.ipv6.length > 0) {
+                    ipv6List.innerHTML = ips.ips.ipv6.map(ip => 
+                        `<div class="ip-item">${ip}</div>`
+                    ).join('');
+                } else {
+                    ipv6List.innerHTML = '<div class="ip-item">无可用的IPv6地址</div>';
+                }
+            }
+        } catch (error) {
+            console.error('更新IP地址显示失败:', error);
         }
     }
 }

@@ -21,6 +21,55 @@
   --bg-contrast-light: #f8f8f8;
 }
 
+/* 全局复选框样式 - 确保在Electron中正常显示 */
+input[type="checkbox"]:not(.switch input[type="checkbox"]):not(.web-mode input[type="checkbox"]) {
+  -webkit-appearance: checkbox !important;
+  -moz-appearance: checkbox !important;
+  appearance: checkbox !important;
+  width: 16px !important;
+  height: 16px !important;
+  cursor: pointer !important;
+  margin-right: 8px !important;
+  display: inline-block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* 特别针对AI模式开关的复选框 */
+.ai-mode-switch input[type="checkbox"],
+.network-toggle input[type="checkbox"] {
+  -webkit-appearance: checkbox !important;
+  -moz-appearance: checkbox !important;
+  appearance: checkbox !important;
+  width: 16px !important;
+  height: 16px !important;
+  cursor: pointer !important;
+  margin-right: 8px !important;
+  display: inline-block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* AI模式开关容器样式 */
+.ai-mode-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.ai-mode-switch label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.ai-mode-switch span {
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
 /* 确保所有文本都有足够的对比度 */
 body,
 .text-primary,
@@ -919,6 +968,13 @@ body {
 .form-group input[type="checkbox"] {
   width: auto;
   margin-right: var(--spacing-sm);
+  /* 确保在Electron中复选框正常显示 */
+  -webkit-appearance: checkbox;
+  -moz-appearance: checkbox;
+  appearance: checkbox;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 .form-group input[type="range"] {
@@ -2726,4 +2782,342 @@ body.light-theme .table th {
     .footer-info {
         padding: 15px;
     }
+}
+
+/* ========================================
+   网络设置样式
+   ======================================== */
+
+.network-content {
+    padding: 20px 0;
+}
+
+/* 网络开关样式修复 */
+.network-setting-item {
+    margin-bottom: 20px;
+}
+
+.network-setting-item .setting-label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.network-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+    flex-wrap: nowrap;
+}
+
+.network-toggle input[type="checkbox"] {
+    -webkit-appearance: checkbox !important;
+    -moz-appearance: checkbox !important;
+    appearance: checkbox !important;
+    width: 16px !important;
+    height: 16px !important;
+    cursor: pointer !important;
+    margin: 0 !important;
+    display: inline-block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    flex-shrink: 0;
+}
+
+.network-toggle label {
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.network-info {
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.network-info h5 {
+    margin-bottom: 15px;
+    color: var(--text-primary-contrast);
+    font-size: 1.1em;
+}
+
+.ip-section {
+    margin-bottom: 15px;
+}
+
+.ip-section h6 {
+    margin-bottom: 8px;
+    color: var(--text-secondary-contrast);
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.ip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ip-item {
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    color: var(--accent-color);
+}
+
+.server-status-container {
+    margin: 20px 0;
+    padding: 0;
+}
+
+.server-status {
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.server-status.running {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.1));
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.server-status.stopped {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.server-status h4 {
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+.server-status.running h4 {
+    color: #4CAF50;
+}
+
+.server-status.stopped h4 {
+    color: var(--text-muted-contrast);
+}
+
+.access-urls {
+    margin: 15px 0;
+    text-align: left;
+}
+
+.access-urls h5 {
+    margin-bottom: 10px;
+    color: var(--text-primary-contrast);
+    font-size: 1em;
+}
+
+.url-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.url-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+}
+
+.url-item .url {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    color: var(--accent-color);
+    word-break: break-all;
+}
+
+.btn-copy {
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: var(--text-primary-contrast);
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-copy:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.status-messages {
+    margin: 15px 0;
+    min-height: 30px;
+}
+
+.status-error {
+    padding: 10px 15px;
+    background: rgba(244, 67, 54, 0.2);
+    border: 1px solid rgba(244, 67, 54, 0.4);
+    border-radius: 6px;
+    color: #ff6b6b;
+    font-size: 0.9em;
+}
+
+.status-success {
+    padding: 10px 15px;
+    background: rgba(76, 175, 80, 0.2);
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    border-radius: 6px;
+    color: #4CAF50;
+    font-size: 0.9em;
+}
+
+.status-info {
+    padding: 10px 15px;
+    background: rgba(33, 150, 243, 0.2);
+    border: 1px solid rgba(33, 150, 243, 0.4);
+    border-radius: 6px;
+    color: #2196F3;
+    font-size: 0.9em;
+}
+
+.network-help {
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.network-help h5 {
+    margin-bottom: 10px;
+    color: var(--text-primary-contrast);
+    font-size: 1em;
+}
+
+.network-help ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.network-help li {
+    margin-bottom: 8px;
+    color: var(--text-secondary-contrast);
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.required {
+    color: #ff6b6b;
+    font-weight: bold;
+}
+
+/* 开关样式 */
+.switch-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.switch-slider {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    transition: background 0.3s ease;
+}
+
+.switch-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+input[type="checkbox"]:checked + .switch-slider {
+    background: var(--accent-color);
+}
+
+input[type="checkbox"]:checked + .switch-slider::before {
+    transform: translateX(20px);
+}
+
+/* 隐藏开关组件中的复选框，但不影响其他复选框 */
+.switch input[type="checkbox"] {
+    display: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .network-content {
+        padding: 10px 0;
+    }
+    
+    .url-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .url-item .url {
+        font-size: 0.8em;
+    }
+    
+    .btn-copy {
+        align-self: flex-end;
+        width: fit-content;
+    }
+}
+
+/* 浅色主题适配 */
+.light-theme .network-info,
+.light-theme .network-help {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .ip-item,
+.light-theme .url-item {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.light-theme .server-status.stopped {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .btn-copy {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.2);
+    color: var(--text-on-light);
+}
+
+.light-theme .btn-copy:hover {
+    background: rgba(0, 0, 0, 0.2);
+    border-color: rgba(0, 0, 0, 0.3);
+}
+
+.light-theme .switch-slider {
+    background: rgba(0, 0, 0, 0.2);
 }

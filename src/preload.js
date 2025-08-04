@@ -116,6 +116,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openExternal: (url) => ipcRenderer.invoke('shell-open-external', url)
   },
   
+  // Web服务器操作
+  startWebServer: (config) => ipcRenderer.invoke('start-web-server', config),
+  stopWebServer: () => ipcRenderer.invoke('stop-web-server'),
+  getWebServerStatus: () => ipcRenderer.invoke('get-web-server-status'),
+  getLocalIPs: () => ipcRenderer.invoke('get-local-ips'),
+  
   // 启动画面相关
   splashReady: () => ipcRenderer.invoke('splash-ready'),
   onSplashUpdate: (callback) => {

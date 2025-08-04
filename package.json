@@ -73,10 +73,17 @@
   "dependencies": {
     "archiver": "^7.0.1",
     "axios": "^1.10.0",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
     "diff": "^8.0.2",
     "electron-store": "^10.1.0",
+    "express": "^5.1.0",
     "extract-zip": "^2.0.1",
     "highlight.js": "^11.11.1",
-    "marked": "^16.0.0"
+    "jsonwebtoken": "^9.0.2",
+    "marked": "^16.0.0",
+    "multer": "^2.0.2",
+    "socket.io": "^4.8.1",
+    "ws": "^8.18.3"
   }
 }

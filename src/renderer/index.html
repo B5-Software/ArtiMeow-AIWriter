@@ -333,6 +333,7 @@
                     <div class="settings-tab" data-tab="editor">编辑器</div>
                     <div class="settings-tab" data-tab="git">Git</div>
                     <div class="settings-tab" data-tab="general">通用</div>
+                    <div class="settings-tab" data-tab="network">网络</div>
                     <div class="settings-tab" data-tab="about">关于</div>
                 </div>
                 <div class="settings-content">
@@ -528,6 +529,89 @@
                         </div>
                     </div>
                     
+                    <!-- 网络设置 -->
+                    <div id="network-settings" class="settings-panel">
+                        <h4>网络设置</h4>
+                        <div class="network-content">
+                            <!-- 启用外部访问 -->
+                            <div class="form-group">
+                                <label class="switch-label">
+                                    <input type="checkbox" id="network-enabled">
+                                    启用外部访问
+                                </label>
+                                <p class="form-help">允许通过网络远程访问本软件</p>
+                            </div>
+
+                            <!-- 服务器设置 (只在启用时显示) -->
+                            <div id="network-server-settings" style="display: none;">
+                                <div class="form-group">
+                                    <label for="network-port">服务器端口</label>
+                                    <input type="number" id="network-port" min="1024" max="65535" value="3000">
+                                    <p class="form-help">Web服务器监听端口 (1024-65535)</p>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="network-password">访问密码 <span class="required">*</span></label>
+                                    <input type="password" id="network-password" placeholder="设置远程访问密码">
+                                    <p class="form-help">远程访问必须输入此密码，请设置强密码</p>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="switch-label">
+                                        <input type="checkbox" id="network-auto-start">
+                                        <span class=""></span>
+                                        随应用启动
+                                    </label>
+                                    <p class="form-help">应用启动时自动开启外部访问</p>
+                                </div>
+
+                                <!-- 服务器控制 -->
+                                <div class="form-group">
+                                    <button id="network-start-stop" class="btn btn-primary" disabled>启动服务器</button>
+                                    <button id="copy-access-url" class="btn btn-secondary" style="margin-left: 10px;">复制访问链接</button>
+                                </div>
+                            </div>
+
+                            <!-- 网络信息 -->
+                            <div class="network-info">
+                                <h5>网络信息</h5>
+                                <div id="network-ip-info">
+                                    <div class="ip-section">
+                                        <h6>IPv4 地址</h6>
+                                        <div id="ipv4-list" class="ip-list"></div>
+                                    </div>
+                                    <div class="ip-section">
+                                        <h6>IPv6 地址</h6>
+                                        <div id="ipv6-list" class="ip-list"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 服务器状态 -->
+                            <div id="network-server-status" class="server-status-container">
+                                <div class="server-status stopped">
+                                    <h4>⭕ 服务器未运行</h4>
+                                    <p>点击"启动服务器"开始提供远程访问</p>
+                                </div>
+                            </div>
+
+                            <!-- 状态消息 -->
+                            <div id="network-status" class="status-messages"></div>
+
+                            <!-- 使用说明 -->
+                            <div class="network-help">
+                                <h5>使用说明</h5>
+                                <ul>
+                                    <li>启用外部访问后，可通过浏览器远程使用本软件</li>
+                                    <li>访问密码用于保护数据安全，建议设置复杂密码</li>
+                                    <li>手机、平板等设备可通过IP地址访问</li>
+                                    <li>确保防火墙允许设置的端口访问</li>
+                                    <li>局域网内的其他设备可以访问，外网访问需要路由器端口转发</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- 关于 -->
                     <div id="about-settings" class="settings-panel">
                         <h4>关于 ArtiMeow AI Writer</h4>
@@ -593,6 +677,27 @@
                                     <div class="dep-item">
                                         <span class="dep-name">extract-zip</span>
                                         <span class="dep-version" id="extractzip-version">-</span>
+                                    </div>
+                                    <!-- Web服务器相关依赖 -->
+                                    <div class="dep-item">
+                                        <span class="dep-name">express</span>
+                                        <span class="dep-version" id="express-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">socket.io</span>
+                                        <span class="dep-version" id="socket-io-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">bcrypt</span>
+                                        <span class="dep-version" id="bcrypt-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">jsonwebtoken</span>
+                                        <span class="dep-version" id="jsonwebtoken-version">-</span>
+                                    </div>
+                                    <div class="dep-item">
+                                        <span class="dep-name">cors</span>
+                                        <span class="dep-version" id="cors-version">-</span>
                                     </div>
                                 </div>
                             </div>
@@ -1133,6 +1238,7 @@
     </div>
 
     <script src="js/settings.js"></script>
+    <script src="js/network.js"></script>
     <script src="js/project.js"></script>
     <script src="js/git.js"></script>
     <script src="js/ai.js"></script>
